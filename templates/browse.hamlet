@@ -1,0 +1,6 @@
+<h1> Browse People </h1>
+                        <table>
+                            $forall Entity personid person <- people
+                               <tr .people>
+                                  <td>#{personName person}</td><td><a href=@{ProfileR personid}> [Profile]</a></td>
+                        <a href=@{HomeR}>Back to Home

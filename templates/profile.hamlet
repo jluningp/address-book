@@ -1,0 +1,7 @@
+<h1> Profile
+<p>
+        Name: #{name}
+<p>
+        Address: #{number} #{street}
+<p>
+        <a href=@{HomeR}>Back to Home

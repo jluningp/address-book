@@ -1,0 +1,299 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head>
+<title>/home/jeanne/research/address-book/src/flycheck_Foundation.hs</title>
+</head>
+<head>
+<link type='text/css' rel='stylesheet' href='liquid.css' />
+</head>
+
+<body>
+<hr>
+Put mouse over identifiers to see inferred types
+<pre><span class=hs-linenum>  1: </span><span class='hs-comment'>{-# LANGUAGE NoImplicitPrelude #-}</span> 
+<span class=hs-linenum>  2: </span><span class='hs-num'>1</span><span class='hs-layout'>;</span><span class='hs-num'>4205</span><span class='hs-layout'>;</span><span class='hs-num'>0</span><span class='hs-varid'>c</span><span class='hs-comment'>{-# LANGUAGE OverloadedStrings #-}</span>
+<span class=hs-linenum>  3: </span><span class='hs-comment'>{-# LANGUAGE TemplateHaskell #-}</span>
+<span class=hs-linenum>  4: </span><span class='hs-comment'>{-# LANGUAGE MultiParamTypeClasses #-}</span>
+<span class=hs-linenum>  5: </span><span class='hs-comment'>{-# LANGUAGE TypeFamilies #-}</span>
+<span class=hs-linenum>  6: </span><span class='hs-comment'>{-# LANGUAGE ViewPatterns #-}</span>
+<span class=hs-linenum>  7: </span>
+<span class=hs-linenum>  8: </span><span class=hs-error><span class='hs-keyword'>module</span></span> <span class='hs-conid'>Foundation</span> <span class='hs-keyword'>where</span>
+<span class=hs-linenum>  9: </span>
+<span class=hs-linenum> 10: </span><span class='hs-keyword'>import</span> <span class='hs-conid'>Import</span><span class='hs-varop'>.</span><span class='hs-conid'>NoFoundation</span>
+<span class=hs-linenum> 11: </span><span class='hs-keyword'>import</span> <span class='hs-conid'>Database</span><span class='hs-varop'>.</span><span class='hs-conid'>Persist</span><span class='hs-varop'>.</span><span class='hs-conid'>Sql</span> <span class='hs-layout'>(</span><span class='hs-conid'>ConnectionPool</span><span class='hs-layout'>,</span> <span class='hs-varid'>runSqlPool</span><span class='hs-layout'>)</span>
+<span class=hs-linenum> 12: </span><span class='hs-keyword'>import</span> <span class='hs-conid'>Text</span><span class='hs-varop'>.</span><span class='hs-conid'>Hamlet</span>          <span class='hs-layout'>(</span><span class='hs-varid'>hamletFile</span><span class='hs-layout'>)</span>
+<span class=hs-linenum> 13: </span><span class='hs-keyword'>import</span> <span class='hs-conid'>Text</span><span class='hs-varop'>.</span><span class='hs-conid'>Jasmine</span>         <span class='hs-layout'>(</span><span class='hs-varid'>minifym</span><span class='hs-layout'>)</span>
+<span class=hs-linenum> 14: </span>
+<span class=hs-linenum> 15: </span><span class='hs-comment'>-- Used only when in "auth-dummy-login" setting is enabled.</span>
+<span class=hs-linenum> 16: </span><span class='hs-keyword'>import</span> <span class='hs-conid'>Yesod</span><span class='hs-varop'>.</span><span class='hs-conid'>Auth</span><span class='hs-varop'>.</span><span class='hs-conid'>Dummy</span>
+<span class=hs-linenum> 17: </span>
+<span class=hs-linenum> 18: </span><span class='hs-keyword'>import</span> <span class='hs-conid'>Yesod</span><span class='hs-varop'>.</span><span class='hs-conid'>Auth</span><span class='hs-varop'>.</span><span class='hs-conid'>OpenId</span>    <span class='hs-layout'>(</span><span class='hs-varid'>authOpenId</span><span class='hs-layout'>,</span> <span class='hs-conid'>IdentifierType</span> <span class='hs-layout'>(</span><span class='hs-conid'>Claimed</span><span class='hs-layout'>)</span><span class='hs-layout'>)</span>
+<span class=hs-linenum> 19: </span><span class='hs-keyword'>import</span> <span class='hs-conid'>Yesod</span><span class='hs-varop'>.</span><span class='hs-conid'>Auth</span><span class='hs-varop'>.</span><span class='hs-conid'>Email</span>
+<span class=hs-linenum> 20: </span><span class='hs-keyword'>import</span> <span class='hs-conid'>Yesod</span><span class='hs-varop'>.</span><span class='hs-conid'>Default</span><span class='hs-varop'>.</span><span class='hs-conid'>Util</span>   <span class='hs-layout'>(</span><span class='hs-varid'>addStaticContentExternal</span><span class='hs-layout'>)</span>
+<span class=hs-linenum> 21: </span><span class='hs-keyword'>import</span> <span class='hs-conid'>Yesod</span><span class='hs-varop'>.</span><span class='hs-conid'>Core</span><span class='hs-varop'>.</span><span class='hs-conid'>Types</span>     <span class='hs-layout'>(</span><span class='hs-conid'>Logger</span><span class='hs-layout'>)</span>
+<span class=hs-linenum> 22: </span><span class='hs-keyword'>import</span> <span class='hs-keyword'>qualified</span> <span class='hs-conid'>Yesod</span><span class='hs-varop'>.</span><span class='hs-conid'>Core</span><span class='hs-varop'>.</span><span class='hs-conid'>Unsafe</span> <span class='hs-keyword'>as</span> <span class='hs-conid'>Unsafe</span>
+<span class=hs-linenum> 23: </span><span class='hs-keyword'>import</span> <span class='hs-keyword'>qualified</span> <span class='hs-conid'>Data</span><span class='hs-varop'>.</span><span class='hs-conid'>CaseInsensitive</span> <span class='hs-keyword'>as</span> <span class='hs-conid'>CI</span>
+<span class=hs-linenum> 24: </span><span class='hs-keyword'>import</span> <span class='hs-keyword'>qualified</span> <span class='hs-conid'>Data</span><span class='hs-varop'>.</span><span class='hs-conid'>Text</span><span class='hs-varop'>.</span><span class='hs-conid'>Encoding</span> <span class='hs-keyword'>as</span> <span class='hs-conid'>TE</span>
+<span class=hs-linenum> 25: </span><span class='hs-keyword'>import</span> <span class='hs-keyword'>qualified</span> <span class='hs-conid'>Data</span><span class='hs-varop'>.</span><span class='hs-conid'>Text</span> <span class='hs-keyword'>as</span> <span class='hs-conid'>T</span>
+<span class=hs-linenum> 26: </span><span class='hs-keyword'>import</span> <span class='hs-keyword'>qualified</span> <span class='hs-conid'>Yesod</span><span class='hs-varop'>.</span><span class='hs-conid'>Auth</span><span class='hs-varop'>.</span><span class='hs-conid'>Message</span> <span class='hs-keyword'>as</span> <span class='hs-conid'>Msg</span>
+<span class=hs-linenum> 27: </span>
+<span class=hs-linenum> 28: </span><span class='hs-comment'>-- | The foundation datatype for your application. This can be a good place to</span>
+<span class=hs-linenum> 29: </span><span class='hs-comment'>-- keep settings and values requiring initialization before your application</span>
+<span class=hs-linenum> 30: </span><span class='hs-comment'>-- starts running, such as database connections. Every handler will have</span>
+<span class=hs-linenum> 31: </span><span class='hs-comment'>-- access to the data present here.</span>
+<span class=hs-linenum> 32: </span><span class='hs-keyword'>data</span> <span class='hs-conid'>App</span> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>App</span>
+<span class=hs-linenum> 33: </span>    <span class='hs-layout'>{</span> <span class='hs-varid'>appSettings</span>    <span class='hs-keyglyph'>::</span> <span class='hs-conid'>AppSettings</span>
+<span class=hs-linenum> 34: </span>    <span class='hs-layout'>,</span> <span class='hs-varid'>appStatic</span>      <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Static</span> <span class='hs-comment'>-- ^ Settings for static file serving.</span>
+<span class=hs-linenum> 35: </span>    <span class='hs-layout'>,</span> <span class='hs-varid'>appConnPool</span>    <span class='hs-keyglyph'>::</span> <span class='hs-conid'>ConnectionPool</span> <span class='hs-comment'>-- ^ Database connection pool.</span>
+<span class=hs-linenum> 36: </span>    <span class='hs-layout'>,</span> <span class='hs-varid'>appHttpManager</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Manager</span>
+<span class=hs-linenum> 37: </span>    <span class='hs-layout'>,</span> <span class='hs-varid'>appLogger</span>      <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Logger</span>
+<span class=hs-linenum> 38: </span>    <span class='hs-layout'>}</span>
+<span class=hs-linenum> 39: </span>
+<span class=hs-linenum> 40: </span><span class='hs-keyword'>data</span> <span class='hs-conid'>MenuItem</span> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>MenuItem</span>
+<span class=hs-linenum> 41: </span>    <span class='hs-layout'>{</span> <span class='hs-varid'>menuItemLabel</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Text</span>
+<span class=hs-linenum> 42: </span>    <span class='hs-layout'>,</span> <span class='hs-varid'>menuItemRoute</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Route</span> <span class='hs-conid'>App</span>
+<span class=hs-linenum> 43: </span>    <span class='hs-layout'>,</span> <span class='hs-varid'>menuItemAccessCallback</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Bool</span>
+<span class=hs-linenum> 44: </span>    <span class='hs-layout'>}</span>
+<span class=hs-linenum> 45: </span>
+<span class=hs-linenum> 46: </span><span class='hs-keyword'>data</span> <span class='hs-conid'>MenuTypes</span>
+<span class=hs-linenum> 47: </span>    <span class='hs-keyglyph'>=</span> <span class='hs-conid'>NavbarLeft</span> <span class='hs-conid'>MenuItem</span>
+<span class=hs-linenum> 48: </span>    <span class='hs-keyglyph'>|</span> <span class='hs-conid'>NavbarRight</span> <span class='hs-conid'>MenuItem</span>
+<span class=hs-linenum> 49: </span>
+<span class=hs-linenum> 50: </span><span class='hs-comment'>-- This is where we define all of the routes in our application. For a full</span>
+<span class=hs-linenum> 51: </span><span class='hs-comment'>-- explanation of the syntax, please see:</span>
+<span class=hs-linenum> 52: </span><span class='hs-comment'>-- <a href="http://www.yesodweb.com/book/routing-and-handlers">http://www.yesodweb.com/book/routing-and-handlers</a></span>
+<span class=hs-linenum> 53: </span><span class='hs-comment'>--</span>
+<span class=hs-linenum> 54: </span><span class='hs-comment'>-- Note that this is really half the story; in Application.hs, mkYesodDispatch</span>
+<span class=hs-linenum> 55: </span><span class='hs-comment'>-- generates the rest of the code. Please see the following documentation</span>
+<span class=hs-linenum> 56: </span><span class='hs-comment'>-- for an explanation for this split:</span>
+<span class=hs-linenum> 57: </span><span class='hs-comment'>-- <a href="http://www.yesodweb.com/book/scaffolding-and-the-site-template#scaffolding-and-the-site-template_foundation_and_application_modules">http://www.yesodweb.com/book/scaffolding-and-the-site-template#scaffolding-and-the-site-template_foundation_and_application_modules</a></span>
+<span class=hs-linenum> 58: </span><span class='hs-comment'>--</span>
+<span class=hs-linenum> 59: </span><span class='hs-comment'>-- This function also generates the following type synonyms:</span>
+<span class=hs-linenum> 60: </span><span class='hs-comment'>-- type Handler = HandlerT App IO</span>
+<span class=hs-linenum> 61: </span><span class='hs-comment'>-- type Widget = WidgetT App IO ()</span>
+<span class=hs-linenum> 62: </span><span class='hs-definition'>mkYesodData</span> <span class='hs-str'>"App"</span> <span class='hs-varop'>$</span><span class='hs-layout'>(</span><span class='hs-varid'>parseRoutesFile</span> <span class='hs-str'>"config/routes"</span><span class='hs-layout'>)</span>
+<span class=hs-linenum> 63: </span>
+<span class=hs-linenum> 64: </span><span class='hs-comment'>-- | A convenient synonym for creating forms.</span>
+<span class=hs-linenum> 65: </span><span class='hs-keyword'>type</span> <span class='hs-conid'>Form</span> <span class='hs-varid'>x</span> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>Html</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>MForm</span> <span class='hs-layout'>(</span><span class='hs-conid'>HandlerT</span> <span class='hs-conid'>App</span> <span class='hs-conid'>IO</span><span class='hs-layout'>)</span> <span class='hs-layout'>(</span><span class='hs-conid'>FormResult</span> <span class='hs-varid'>x</span><span class='hs-layout'>,</span> <span class='hs-conid'>Widget</span><span class='hs-layout'>)</span>
+<span class=hs-linenum> 66: </span>
+<span class=hs-linenum> 67: </span><span class='hs-comment'>-- Please see the documentation for the Yesod typeclass. There are a number</span>
+<span class=hs-linenum> 68: </span><span class='hs-comment'>-- of settings which can be configured by overriding methods here.</span>
+<span class=hs-linenum> 69: </span><span class='hs-keyword'>instance</span> <span class='hs-conid'>Yesod</span> <span class='hs-conid'>App</span> <span class='hs-keyword'>where</span>
+<span class=hs-linenum> 70: </span>    <span class='hs-comment'>-- Controls the base of generated URLs. For more information on modifying,</span>
+<span class=hs-linenum> 71: </span>    <span class='hs-comment'>-- see: https://github.com/yesodweb/yesod/wiki/Overriding-approot</span>
+<span class=hs-linenum> 72: </span>    <span class='hs-varid'>approot</span> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>ApprootRequest</span> <span class='hs-varop'>$</span> <span class='hs-keyglyph'>\</span><span class='hs-varid'>app</span> <span class='hs-varid'>req</span> <span class='hs-keyglyph'>-&gt;</span>
+<span class=hs-linenum> 73: </span>        <span class='hs-keyword'>case</span> <span class='hs-varid'>appRoot</span> <span class='hs-varop'>$</span> <span class='hs-varid'>appSettings</span> <span class='hs-varid'>app</span> <span class='hs-keyword'>of</span>
+<span class=hs-linenum> 74: </span>            <span class='hs-conid'>Nothing</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>getApprootText</span> <span class='hs-varid'>guessApproot</span> <span class='hs-varid'>app</span> <span class='hs-varid'>req</span>
+<span class=hs-linenum> 75: </span>            <span class='hs-conid'>Just</span> <span class='hs-varid'>root</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>root</span>
+<span class=hs-linenum> 76: </span>
+<span class=hs-linenum> 77: </span>    <span class='hs-comment'>-- Store session data on the client in encrypted cookies,</span>
+<span class=hs-linenum> 78: </span>    <span class='hs-comment'>-- default session idle timeout is 120 minutes</span>
+<span class=hs-linenum> 79: </span>    <span class='hs-varid'>makeSessionBackend</span> <span class='hs-keyword'>_</span> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>Just</span> <span class='hs-varop'>&lt;$&gt;</span> <span class='hs-varid'>defaultClientSessionBackend</span>
+<span class=hs-linenum> 80: </span>        <span class='hs-num'>120</span>    <span class='hs-comment'>-- timeout in minutes</span>
+<span class=hs-linenum> 81: </span>        <span class='hs-str'>"config/client_session_key.aes"</span>
+<span class=hs-linenum> 82: </span>
+<span class=hs-linenum> 83: </span>    <span class='hs-comment'>-- Yesod Middleware allows you to run code before and after each handler function.</span>
+<span class=hs-linenum> 84: </span>    <span class='hs-comment'>-- The defaultYesodMiddleware adds the response header "Vary: Accept, Accept-Language" and performs authorization checks.</span>
+<span class=hs-linenum> 85: </span>    <span class='hs-comment'>-- Some users may also want to add the defaultCsrfMiddleware, which:</span>
+<span class=hs-linenum> 86: </span>    <span class='hs-comment'>--   a) Sets a cookie with a CSRF token in it.</span>
+<span class=hs-linenum> 87: </span>    <span class='hs-comment'>--   b) Validates that incoming write requests include that token in either a header or POST parameter.</span>
+<span class=hs-linenum> 88: </span>    <span class='hs-comment'>-- To add it, chain it together with the defaultMiddleware: yesodMiddleware = defaultYesodMiddleware . defaultCsrfMiddleware</span>
+<span class=hs-linenum> 89: </span>    <span class='hs-comment'>-- For details, see the CSRF documentation in the Yesod.Core.Handler module of the yesod-core package.</span>
+<span class=hs-linenum> 90: </span>    <span class='hs-varid'>yesodMiddleware</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>defaultYesodMiddleware</span>
+<span class=hs-linenum> 91: </span>
+<span class=hs-linenum> 92: </span>    <span class='hs-varid'>defaultLayout</span> <span class='hs-varid'>widget</span> <span class='hs-keyglyph'>=</span> <span class='hs-keyword'>do</span>
+<span class=hs-linenum> 93: </span>        <span class='hs-varid'>master</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>getYesod</span>
+<span class=hs-linenum> 94: </span>        <span class='hs-varid'>mmsg</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>getMessage</span>
+<span class=hs-linenum> 95: </span>
+<span class=hs-linenum> 96: </span>        <span class='hs-varid'>muser</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>maybeAuthPair</span>
+<span class=hs-linenum> 97: </span>        <span class='hs-varid'>mcurrentRoute</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>getCurrentRoute</span>
+<span class=hs-linenum> 98: </span>
+<span class=hs-linenum> 99: </span>        <span class='hs-comment'>-- Get the breadcrumbs, as defined in the YesodBreadcrumbs instance.</span>
+<span class=hs-linenum>100: </span>        <span class='hs-layout'>(</span><span class='hs-varid'>title</span><span class='hs-layout'>,</span> <span class='hs-varid'>parents</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>breadcrumbs</span>
+<span class=hs-linenum>101: </span>
+<span class=hs-linenum>102: </span>        <span class='hs-comment'>-- We break up the default layout into two components:</span>
+<span class=hs-linenum>103: </span>        <span class='hs-comment'>-- default-layout is the contents of the body tag, and</span>
+<span class=hs-linenum>104: </span>        <span class='hs-comment'>-- default-layout-wrapper is the entire page. Since the final</span>
+<span class=hs-linenum>105: </span>        <span class='hs-comment'>-- value passed to hamletToRepHtml cannot be a widget, this allows</span>
+<span class=hs-linenum>106: </span>        <span class='hs-comment'>-- you to use normal widget features in default-layout.</span>
+<span class=hs-linenum>107: </span>
+<span class=hs-linenum>108: </span>        <span class='hs-varid'>pc</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>widgetToPageContent</span> <span class='hs-varop'>$</span> <span class='hs-keyword'>do</span>
+<span class=hs-linenum>109: </span>            <span class='hs-varid'>addStylesheet</span> <span class='hs-varop'>$</span> <span class='hs-conid'>StaticR</span> <span class='hs-varid'>css_bootstrap_css</span>
+<span class=hs-linenum>110: </span>            <span class='hs-varop'>$</span><span class='hs-layout'>(</span><span class='hs-varid'>widgetFile</span> <span class='hs-str'>"default-layout"</span><span class='hs-layout'>)</span>
+<span class=hs-linenum>111: </span>        <span class='hs-varid'>withUrlRenderer</span> <span class='hs-varop'>$</span><span class='hs-layout'>(</span><span class='hs-varid'>hamletFile</span> <span class='hs-str'>"templates/default-layout-wrapper.hamlet"</span><span class='hs-layout'>)</span>
+<span class=hs-linenum>112: </span>
+<span class=hs-linenum>113: </span>    <span class='hs-comment'>-- The page to be redirected to when authentication is required.</span>
+<span class=hs-linenum>114: </span>    <span class='hs-varid'>authRoute</span> <span class='hs-keyword'>_</span> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>Just</span> <span class='hs-varop'>$</span> <span class='hs-conid'>AuthR</span> <span class='hs-conid'>LoginR</span>
+<span class=hs-linenum>115: </span>
+<span class=hs-linenum>116: </span>    <span class='hs-comment'>-- Routes not requiring authentication.</span>
+<span class=hs-linenum>117: </span>    <span class='hs-varid'>isAuthorized</span> <span class='hs-layout'>(</span><span class='hs-conid'>AuthR</span> <span class='hs-keyword'>_</span><span class='hs-layout'>)</span> <span class='hs-keyword'>_</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>return</span> <span class='hs-conid'>Authorized</span>
+<span class=hs-linenum>118: </span>    <span class='hs-varid'>isAuthorized</span> <span class='hs-conid'>CommentR</span> <span class='hs-keyword'>_</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>return</span> <span class='hs-conid'>Authorized</span>
+<span class=hs-linenum>119: </span>    <span class='hs-varid'>isAuthorized</span> <span class='hs-conid'>HomeR</span> <span class='hs-keyword'>_</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>return</span> <span class='hs-conid'>Authorized</span>
+<span class=hs-linenum>120: </span>    <span class='hs-varid'>isAuthorized</span> <span class='hs-conid'>FaviconR</span> <span class='hs-keyword'>_</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>return</span> <span class='hs-conid'>Authorized</span>
+<span class=hs-linenum>121: </span>    <span class='hs-varid'>isAuthorized</span> <span class='hs-conid'>RobotsR</span> <span class='hs-keyword'>_</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>return</span> <span class='hs-conid'>Authorized</span>
+<span class=hs-linenum>122: </span>    <span class='hs-varid'>isAuthorized</span> <span class='hs-layout'>(</span><span class='hs-conid'>StaticR</span> <span class='hs-keyword'>_</span><span class='hs-layout'>)</span> <span class='hs-keyword'>_</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>return</span> <span class='hs-conid'>Authorized</span>
+<span class=hs-linenum>123: </span>    <span class='hs-varid'>isAuthorized</span> <span class='hs-conid'>BrowseR</span> <span class='hs-keyword'>_</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>return</span> <span class='hs-conid'>Authorized</span>
+<span class=hs-linenum>124: </span>    <span class='hs-varid'>isAuthorized</span> <span class='hs-layout'>(</span><span class='hs-conid'>ProfileR</span> <span class='hs-keyword'>_</span><span class='hs-layout'>)</span> <span class='hs-keyword'>_</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>isAuthenticated</span> <span class='hs-comment'>--Change isAuthenticated when you get authentication working</span>
+<span class=hs-linenum>125: </span>
+<span class=hs-linenum>126: </span>    <span class='hs-comment'>-- This function creates static content files in the static folder</span>
+<span class=hs-linenum>127: </span>    <span class='hs-comment'>-- and names them based on a hash of their content. This allows</span>
+<span class=hs-linenum>128: </span>    <span class='hs-comment'>-- expiration dates to be set far in the future without worry of</span>
+<span class=hs-linenum>129: </span>    <span class='hs-comment'>-- users receiving stale content.</span>
+<span class=hs-linenum>130: </span>    <span class='hs-varid'>addStaticContent</span> <span class='hs-varid'>ext</span> <span class='hs-varid'>mime</span> <span class='hs-varid'>content</span> <span class='hs-keyglyph'>=</span> <span class='hs-keyword'>do</span>
+<span class=hs-linenum>131: </span>        <span class='hs-varid'>master</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>getYesod</span>
+<span class=hs-linenum>132: </span>        <span class='hs-keyword'>let</span> <span class='hs-varid'>staticDir</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>appStaticDir</span> <span class='hs-varop'>$</span> <span class='hs-varid'>appSettings</span> <span class='hs-varid'>master</span>
+<span class=hs-linenum>133: </span>        <span class='hs-varid'>addStaticContentExternal</span>
+<span class=hs-linenum>134: </span>            <span class='hs-varid'>minifym</span>
+<span class=hs-linenum>135: </span>            <span class='hs-varid'>genFileName</span>
+<span class=hs-linenum>136: </span>            <span class='hs-varid'>staticDir</span>
+<span class=hs-linenum>137: </span>            <span class='hs-layout'>(</span><span class='hs-conid'>StaticR</span> <span class='hs-varop'>.</span> <span class='hs-varid'>flip</span> <span class='hs-conid'>StaticRoute</span> <span class='hs-conid'>[]</span><span class='hs-layout'>)</span>
+<span class=hs-linenum>138: </span>            <span class='hs-varid'>ext</span>
+<span class=hs-linenum>139: </span>            <span class='hs-varid'>mime</span>
+<span class=hs-linenum>140: </span>            <span class='hs-varid'>content</span>
+<span class=hs-linenum>141: </span>      <span class='hs-keyword'>where</span>
+<span class=hs-linenum>142: </span>        <span class='hs-comment'>-- Generate a unique filename based on the content itself</span>
+<span class=hs-linenum>143: </span>        <span class='hs-varid'>genFileName</span> <span class='hs-varid'>lbs</span> <span class='hs-keyglyph'>=</span> <span class='hs-str'>"autogen-"</span> <span class='hs-varop'>++</span> <span class='hs-varid'>base64md5</span> <span class='hs-varid'>lbs</span>
+<span class=hs-linenum>144: </span>
+<span class=hs-linenum>145: </span>    <span class='hs-comment'>-- What messages should be logged. The following includes all messages when</span>
+<span class=hs-linenum>146: </span>    <span class='hs-comment'>-- in development, and warnings and errors in production.</span>
+<span class=hs-linenum>147: </span>    <span class='hs-varid'>shouldLog</span> <span class='hs-varid'>app</span> <span class='hs-sel'>_source</span> <span class='hs-varid'>level</span> <span class='hs-keyglyph'>=</span>
+<span class=hs-linenum>148: </span>        <span class='hs-varid'>appShouldLogAll</span> <span class='hs-layout'>(</span><span class='hs-varid'>appSettings</span> <span class='hs-varid'>app</span><span class='hs-layout'>)</span>
+<span class=hs-linenum>149: </span>            <span class='hs-varop'>||</span> <span class='hs-varid'>level</span> <span class='hs-varop'>==</span> <span class='hs-conid'>LevelWarn</span>
+<span class=hs-linenum>150: </span>            <span class='hs-varop'>||</span> <span class='hs-varid'>level</span> <span class='hs-varop'>==</span> <span class='hs-conid'>LevelError</span>
+<span class=hs-linenum>151: </span>
+<span class=hs-linenum>152: </span>    <span class='hs-varid'>makeLogger</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>return</span> <span class='hs-varop'>.</span> <span class='hs-varid'>appLogger</span>
+<span class=hs-linenum>153: </span>
+<span class=hs-linenum>154: </span><span class='hs-comment'>-- Define breadcrumbs.</span>
+<span class=hs-linenum>155: </span><span class='hs-keyword'>instance</span> <span class='hs-conid'>YesodBreadcrumbs</span> <span class='hs-conid'>App</span> <span class='hs-keyword'>where</span>
+<span class=hs-linenum>156: </span>  <span class='hs-varid'>breadcrumb</span> <span class='hs-conid'>HomeR</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>return</span> <span class='hs-layout'>(</span><span class='hs-str'>"Home"</span><span class='hs-layout'>,</span> <span class='hs-conid'>Nothing</span><span class='hs-layout'>)</span>
+<span class=hs-linenum>157: </span>  <span class='hs-varid'>breadcrumb</span> <span class='hs-layout'>(</span><span class='hs-conid'>AuthR</span> <span class='hs-keyword'>_</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>return</span> <span class='hs-layout'>(</span><span class='hs-str'>"Login"</span><span class='hs-layout'>,</span> <span class='hs-conid'>Just</span> <span class='hs-conid'>HomeR</span><span class='hs-layout'>)</span>
+<span class=hs-linenum>158: </span>  <span class='hs-varid'>breadcrumb</span> <span class='hs-layout'>(</span><span class='hs-conid'>ProfileR</span> <span class='hs-keyword'>_</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>return</span> <span class='hs-layout'>(</span><span class='hs-str'>"Profile"</span><span class='hs-layout'>,</span> <span class='hs-conid'>Just</span> <span class='hs-conid'>HomeR</span><span class='hs-layout'>)</span>
+<span class=hs-linenum>159: </span>  <span class='hs-varid'>breadcrumb</span>  <span class='hs-keyword'>_</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>return</span> <span class='hs-layout'>(</span><span class='hs-str'>"home"</span><span class='hs-layout'>,</span> <span class='hs-conid'>Nothing</span><span class='hs-layout'>)</span>
+<span class=hs-linenum>160: </span>
+<span class=hs-linenum>161: </span><span class='hs-comment'>-- How to run database actions.</span>
+<span class=hs-linenum>162: </span><span class='hs-keyword'>instance</span> <span class='hs-conid'>YesodPersist</span> <span class='hs-conid'>App</span> <span class='hs-keyword'>where</span>
+<span class=hs-linenum>163: </span>    <span class='hs-keyword'>type</span> <span class='hs-conid'>YesodPersistBackend</span> <span class='hs-conid'>App</span> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>SqlBackend</span>
+<span class=hs-linenum>164: </span>    <span class='hs-varid'>runDB</span> <span class='hs-varid'>action</span> <span class='hs-keyglyph'>=</span> <span class='hs-keyword'>do</span>
+<span class=hs-linenum>165: </span>        <span class='hs-varid'>master</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>getYesod</span>
+<span class=hs-linenum>166: </span>        <span class='hs-varid'>runSqlPool</span> <span class='hs-varid'>action</span> <span class='hs-varop'>$</span> <span class='hs-varid'>appConnPool</span> <span class='hs-varid'>master</span>
+<span class=hs-linenum>167: </span><span class='hs-keyword'>instance</span> <span class='hs-conid'>YesodPersistRunner</span> <span class='hs-conid'>App</span> <span class='hs-keyword'>where</span>
+<span class=hs-linenum>168: </span>    <span class='hs-varid'>getDBRunner</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>defaultGetDBRunner</span> <span class='hs-varid'>appConnPool</span>
+<span class=hs-linenum>169: </span>
+<span class=hs-linenum>170: </span><span class='hs-keyword'>instance</span> <span class='hs-conid'>YesodAuth</span> <span class='hs-conid'>App</span> <span class='hs-keyword'>where</span>
+<span class=hs-linenum>171: </span>      <span class='hs-keyword'>type</span> <span class='hs-conid'>AuthId</span> <span class='hs-conid'>App</span> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>UserId</span>
+<span class=hs-linenum>172: </span>
+<span class=hs-linenum>173: </span>      <span class='hs-varid'>loginDest</span> <span class='hs-keyword'>_</span> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>HomeR</span>
+<span class=hs-linenum>174: </span>      <span class='hs-varid'>logoutDest</span> <span class='hs-keyword'>_</span> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>HomeR</span>
+<span class=hs-linenum>175: </span>      <span class='hs-varid'>authPlugins</span> <span class='hs-keyword'>_</span> <span class='hs-keyglyph'>=</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>authEmail</span><span class='hs-keyglyph'>]</span>
+<span class=hs-linenum>176: </span>
+<span class=hs-linenum>177: </span>      <span class='hs-comment'>-- Need to find the UserId for the given email address.</span>
+<span class=hs-linenum>178: </span>      <span class='hs-varid'>getAuthId</span> <span class='hs-varid'>creds</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>runDB</span> <span class='hs-varop'>$</span> <span class='hs-keyword'>do</span>
+<span class=hs-linenum>179: </span>        <span class='hs-varid'>x</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>insertBy</span> <span class='hs-varop'>$</span> <span class='hs-conid'>User</span> <span class='hs-layout'>(</span><span class='hs-varid'>credsIdent</span> <span class='hs-varid'>creds</span><span class='hs-layout'>)</span> <span class='hs-conid'>Nothing</span> <span class='hs-conid'>Nothing</span> <span class='hs-conid'>False</span>
+<span class=hs-linenum>180: </span>        <span class='hs-varid'>return</span> <span class='hs-varop'>$</span> <span class='hs-conid'>Just</span> <span class='hs-varop'>$</span>
+<span class=hs-linenum>181: </span>          <span class='hs-keyword'>case</span> <span class='hs-varid'>x</span> <span class='hs-keyword'>of</span>
+<span class=hs-linenum>182: </span>            <span class='hs-conid'>Left</span> <span class='hs-layout'>(</span><span class='hs-conid'>Entity</span> <span class='hs-varid'>userid</span> <span class='hs-keyword'>_</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>userid</span> <span class='hs-comment'>-- newly added user</span>
+<span class=hs-linenum>183: </span>            <span class='hs-conid'>Right</span> <span class='hs-varid'>userid</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>userid</span> <span class='hs-comment'>-- existing user</span>
+<span class=hs-linenum>184: </span>
+<span class=hs-linenum>185: </span>      <span class='hs-varid'>authHttpManager</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>error</span> <span class='hs-str'>"Email doesn't need an HTTP manager"</span>
+<span class=hs-linenum>186: </span>
+<span class=hs-linenum>187: </span><span class='hs-comment'>-- Here's all of the email-specific code</span>
+<span class=hs-linenum>188: </span><span class='hs-keyword'>instance</span> <span class='hs-conid'>YesodAuthEmail</span> <span class='hs-conid'>App</span> <span class='hs-keyword'>where</span>
+<span class=hs-linenum>189: </span>      <span class='hs-keyword'>type</span> <span class='hs-conid'>AuthEmailId</span> <span class='hs-conid'>App</span> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>UserId</span>
+<span class=hs-linenum>190: </span>
+<span class=hs-linenum>191: </span>      <span class='hs-varid'>afterPasswordRoute</span> <span class='hs-keyword'>_</span> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>HomeR</span>
+<span class=hs-linenum>192: </span>
+<span class=hs-linenum>193: </span>      <span class='hs-varid'>addUnverified</span> <span class='hs-varid'>email</span> <span class='hs-varid'>verkey</span> <span class='hs-keyglyph'>=</span> <span class='hs-keyword'>do</span>
+<span class=hs-linenum>194: </span>        <span class='hs-varid'>uid</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>runDB</span> <span class='hs-varop'>$</span> <span class='hs-varid'>insert</span> <span class='hs-varop'>$</span> <span class='hs-conid'>User</span> <span class='hs-varid'>email</span> <span class='hs-conid'>Nothing</span> <span class='hs-layout'>(</span><span class='hs-conid'>Just</span> <span class='hs-varid'>verkey</span><span class='hs-layout'>)</span> <span class='hs-conid'>False</span>
+<span class=hs-linenum>195: </span>        <span class='hs-varid'>liftIO</span> <span class='hs-varop'>$</span> <span class='hs-varid'>print</span> <span class='hs-varid'>uid</span>
+<span class=hs-linenum>196: </span>        <span class='hs-varid'>return</span> <span class='hs-varid'>uid</span>
+<span class=hs-linenum>197: </span>        <span class='hs-comment'>--redirect AuthR $ verifyR uid verkey</span>
+<span class=hs-linenum>198: </span>      
+<span class=hs-linenum>199: </span>      <span class='hs-varid'>sendVerifyEmail</span> <span class='hs-varid'>email</span> <span class='hs-varid'>verkey</span> <span class='hs-varid'>verurl</span> <span class='hs-keyglyph'>=</span> <span class='hs-keyword'>do</span>
+<span class=hs-linenum>200: </span>        <span class='hs-comment'>-- Print out to the console the verification email, for easier</span>
+<span class=hs-linenum>201: </span>        <span class='hs-comment'>-- debugging.  </span>
+<span class=hs-linenum>202: </span>        <span class='hs-varid'>liftIO</span> <span class='hs-varop'>$</span> <span class='hs-varid'>putStrLn</span> <span class='hs-varop'>$</span> <span class='hs-str'>"Copy/ Paste this URL in your browser:"</span> <span class='hs-varop'>++</span> <span class='hs-varid'>verurl</span>
+<span class=hs-linenum>203: </span>      
+<span class=hs-linenum>204: </span>      <span class='hs-varid'>getVerifyKey</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>runDB</span> <span class='hs-varop'>.</span> <span class='hs-varid'>fmap</span> <span class='hs-layout'>(</span><span class='hs-varid'>join</span> <span class='hs-varop'>.</span> <span class='hs-varid'>fmap</span> <span class='hs-varid'>userVerkey</span><span class='hs-layout'>)</span> <span class='hs-varop'>.</span> <span class='hs-varid'>get</span>
+<span class=hs-linenum>205: </span>      <span class='hs-varid'>setVerifyKey</span> <span class='hs-varid'>uid</span> <span class='hs-varid'>key</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>runDB</span> <span class='hs-varop'>$</span> <span class='hs-varid'>update</span> <span class='hs-varid'>uid</span> <span class='hs-keyglyph'>[</span><span class='hs-conid'>UserVerkey</span> <span class='hs-varop'>=.</span> <span class='hs-conid'>Just</span> <span class='hs-varid'>key</span><span class='hs-keyglyph'>]</span>
+<span class=hs-linenum>206: </span>      <span class='hs-varid'>verifyAccount</span> <span class='hs-varid'>uid</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>runDB</span> <span class='hs-varop'>$</span> <span class='hs-keyword'>do</span>
+<span class=hs-linenum>207: </span>        <span class='hs-varid'>mu</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>get</span> <span class='hs-varid'>uid</span>
+<span class=hs-linenum>208: </span>        <span class='hs-keyword'>case</span> <span class='hs-varid'>mu</span> <span class='hs-keyword'>of</span>
+<span class=hs-linenum>209: </span>          <span class='hs-conid'>Nothing</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>return</span> <span class='hs-conid'>Nothing</span>
+<span class=hs-linenum>210: </span>          <span class='hs-conid'>Just</span> <span class='hs-varid'>u</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyword'>do</span>
+<span class=hs-linenum>211: </span>            <span class='hs-varid'>insert</span> <span class='hs-varop'>$</span> <span class='hs-conid'>Person</span> <span class='hs-layout'>(</span><span class='hs-varid'>userEmail</span> <span class='hs-varid'>u</span><span class='hs-layout'>)</span> <span class='hs-str'>"[No Name]"</span> <span class='hs-str'>"[No Number]"</span> <span class='hs-str'>"[No Street]"</span>
+<span class=hs-linenum>212: </span>            <span class='hs-varid'>update</span> <span class='hs-varid'>uid</span> <span class='hs-keyglyph'>[</span><span class='hs-conid'>UserVerified</span> <span class='hs-varop'>=.</span> <span class='hs-conid'>True</span><span class='hs-keyglyph'>]</span>
+<span class=hs-linenum>213: </span>            <span class='hs-varid'>return</span> <span class='hs-varop'>$</span> <span class='hs-conid'>Just</span> <span class='hs-varid'>uid</span>
+<span class=hs-linenum>214: </span>      <span class='hs-varid'>getPassword</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>runDB</span> <span class='hs-varop'>.</span> <span class='hs-varid'>fmap</span> <span class='hs-layout'>(</span><span class='hs-varid'>join</span> <span class='hs-varop'>.</span> <span class='hs-varid'>fmap</span> <span class='hs-varid'>userPassword</span><span class='hs-layout'>)</span> <span class='hs-varop'>.</span> <span class='hs-varid'>get</span>
+<span class=hs-linenum>215: </span>      <span class='hs-varid'>setPassword</span> <span class='hs-varid'>uid</span> <span class='hs-varid'>pass</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>runDB</span> <span class='hs-varop'>$</span> <span class='hs-varid'>update</span> <span class='hs-varid'>uid</span> <span class='hs-keyglyph'>[</span><span class='hs-conid'>UserPassword</span> <span class='hs-varop'>=.</span> <span class='hs-conid'>Just</span> <span class='hs-varid'>pass</span><span class='hs-keyglyph'>]</span>
+<span class=hs-linenum>216: </span>      <span class='hs-varid'>getEmailCreds</span> <span class='hs-varid'>email</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>runDB</span> <span class='hs-varop'>$</span> <span class='hs-keyword'>do</span>
+<span class=hs-linenum>217: </span>        <span class='hs-varid'>mu</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>getBy</span> <span class='hs-varop'>$</span> <span class='hs-conid'>UniqueUser</span> <span class='hs-varid'>email</span>
+<span class=hs-linenum>218: </span>        <span class='hs-keyword'>case</span> <span class='hs-varid'>mu</span> <span class='hs-keyword'>of</span>
+<span class=hs-linenum>219: </span>          <span class='hs-conid'>Nothing</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>return</span> <span class='hs-conid'>Nothing</span>
+<span class=hs-linenum>220: </span>          <span class='hs-conid'>Just</span> <span class='hs-layout'>(</span><span class='hs-conid'>Entity</span> <span class='hs-varid'>uid</span> <span class='hs-varid'>u</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>return</span> <span class='hs-varop'>$</span> <span class='hs-conid'>Just</span> <span class='hs-conid'>EmailCreds</span>
+<span class=hs-linenum>221: </span>                <span class='hs-layout'>{</span> <span class='hs-varid'>emailCredsId</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>uid</span>
+<span class=hs-linenum>222: </span>                <span class='hs-layout'>,</span> <span class='hs-varid'>emailCredsAuthId</span> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>Just</span> <span class='hs-varid'>uid</span>
+<span class=hs-linenum>223: </span>                <span class='hs-layout'>,</span> <span class='hs-varid'>emailCredsStatus</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>isJust</span> <span class='hs-varop'>$</span> <span class='hs-varid'>userPassword</span> <span class='hs-varid'>u</span>
+<span class=hs-linenum>224: </span>                <span class='hs-layout'>,</span> <span class='hs-varid'>emailCredsVerkey</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>userVerkey</span> <span class='hs-varid'>u</span>
+<span class=hs-linenum>225: </span>                <span class='hs-layout'>,</span> <span class='hs-varid'>emailCredsEmail</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>email</span>
+<span class=hs-linenum>226: </span>                <span class='hs-layout'>}</span>
+<span class=hs-linenum>227: </span>      <span class='hs-varid'>getEmail</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>runDB</span> <span class='hs-varop'>.</span> <span class='hs-varid'>fmap</span> <span class='hs-layout'>(</span><span class='hs-varid'>fmap</span> <span class='hs-varid'>userEmail</span><span class='hs-layout'>)</span> <span class='hs-varop'>.</span> <span class='hs-varid'>get</span>
+<span class=hs-linenum>228: </span>
+<span class=hs-linenum>229: </span>
+<span class=hs-linenum>230: </span>      <span class='hs-varid'>registerHandler</span> <span class='hs-keyglyph'>=</span> <span class='hs-keyword'>do</span>
+<span class=hs-linenum>231: </span>        <span class='hs-layout'>(</span><span class='hs-varid'>widget</span><span class='hs-layout'>,</span> <span class='hs-varid'>enctype</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>lift</span> <span class='hs-varop'>$</span> <span class='hs-varid'>generateFormPost</span> <span class='hs-varid'>registrationForm</span>
+<span class=hs-linenum>232: </span>        <span class='hs-varid'>toParentRoute</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>getRouteToParent</span>
+<span class=hs-linenum>233: </span>        <span class='hs-varid'>lift</span> <span class='hs-varop'>$</span> <span class='hs-varid'>authLayout</span> <span class='hs-varop'>$</span> <span class='hs-keyword'>do</span>
+<span class=hs-linenum>234: </span>          <span class='hs-varid'>setTitleI</span> <span class='hs-conid'>Msg</span><span class='hs-varop'>.</span><span class='hs-conid'>RegisterLong</span>
+<span class=hs-linenum>235: </span>            <span class='hs-varop'>$</span><span class='hs-layout'>(</span><span class='hs-varid'>widgetFile</span> <span class='hs-str'>"register"</span><span class='hs-layout'>)</span>
+<span class=hs-linenum>236: </span>        <span class='hs-keyword'>where</span>
+<span class=hs-linenum>237: </span>          <span class='hs-varid'>registrationForm</span> <span class='hs-varid'>extra</span> <span class='hs-keyglyph'>=</span> <span class='hs-keyword'>do</span>
+<span class=hs-linenum>238: </span>            <span class='hs-keyword'>let</span> <span class='hs-varid'>emailSettings</span> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>FieldSettings</span> <span class='hs-layout'>{</span>
+<span class=hs-linenum>239: </span>                  <span class='hs-varid'>fsLabel</span> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>SomeMessage</span> <span class='hs-conid'>Msg</span><span class='hs-varop'>.</span><span class='hs-conid'>Email</span><span class='hs-layout'>,</span>
+<span class=hs-linenum>240: </span>                  <span class='hs-varid'>fsTooltip</span> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>Nothing</span><span class='hs-layout'>,</span>
+<span class=hs-linenum>241: </span>                  <span class='hs-varid'>fsId</span> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>Just</span> <span class='hs-str'>"email"</span><span class='hs-layout'>,</span>
+<span class=hs-linenum>242: </span>                  <span class='hs-varid'>fsName</span> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>Just</span> <span class='hs-str'>"email"</span><span class='hs-layout'>,</span>
+<span class=hs-linenum>243: </span>                  <span class='hs-varid'>fsAttrs</span> <span class='hs-keyglyph'>=</span> <span class='hs-keyglyph'>[</span><span class='hs-layout'>(</span><span class='hs-str'>"autofocus"</span><span class='hs-layout'>,</span> <span class='hs-str'>""</span><span class='hs-layout'>)</span><span class='hs-keyglyph'>]</span>
+<span class=hs-linenum>244: </span>                  <span class='hs-layout'>}</span>
+<span class=hs-linenum>245: </span>
+<span class=hs-linenum>246: </span>            <span class='hs-layout'>(</span><span class='hs-varid'>emailRes</span><span class='hs-layout'>,</span> <span class='hs-varid'>emailView</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>mreq</span> <span class='hs-varid'>emailField</span> <span class='hs-varid'>emailSettings</span> <span class='hs-conid'>Nothing</span>
+<span class=hs-linenum>247: </span>
+<span class=hs-linenum>248: </span>            <span class='hs-keyword'>let</span> <span class='hs-varid'>userRes</span> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>UserForm</span> <span class='hs-varop'>&lt;$&gt;</span> <span class='hs-varid'>emailRes</span>
+<span class=hs-linenum>249: </span>            <span class='hs-keyword'>let</span> <span class='hs-varid'>widget</span> <span class='hs-keyglyph'>=</span> <span class='hs-keyword'>do</span>
+<span class=hs-linenum>250: </span>                  <span class='hs-varop'>$</span><span class='hs-layout'>(</span><span class='hs-varid'>widgetFile</span> <span class='hs-str'>"register-widget"</span><span class='hs-layout'>)</span>
+<span class=hs-linenum>251: </span>            <span class='hs-varid'>return</span> <span class='hs-layout'>(</span><span class='hs-varid'>userRes</span><span class='hs-layout'>,</span> <span class='hs-varid'>widget</span><span class='hs-layout'>)</span>
+<span class=hs-linenum>252: </span>
+<span class=hs-linenum>253: </span>
+<span class=hs-linenum>254: </span><span class='hs-comment'>-- | Access function to determine if a user is logged in.</span>
+<span class=hs-linenum>255: </span><span class='hs-definition'>isAuthenticated</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Handler</span> <span class='hs-conid'>AuthResult</span>
+<span class=hs-linenum>256: </span><span class='hs-definition'>isAuthenticated</span> <span class='hs-keyglyph'>=</span> <span class='hs-keyword'>do</span>
+<span class=hs-linenum>257: </span>    <span class='hs-varid'>muid</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>maybeAuthId</span>
+<span class=hs-linenum>258: </span>    <span class='hs-varid'>return</span> <span class='hs-varop'>$</span> <span class='hs-keyword'>case</span> <span class='hs-varid'>muid</span> <span class='hs-keyword'>of</span>
+<span class=hs-linenum>259: </span>        <span class='hs-conid'>Nothing</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Unauthorized</span> <span class='hs-str'>"You must login to access this page"</span>
+<span class=hs-linenum>260: </span>        <span class='hs-conid'>Just</span> <span class='hs-keyword'>_</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Authorized</span>
+<span class=hs-linenum>261: </span>
+<span class=hs-linenum>262: </span><span class='hs-keyword'>instance</span> <span class='hs-conid'>YesodAuthPersist</span> <span class='hs-conid'>App</span>
+<span class=hs-linenum>263: </span>
+<span class=hs-linenum>264: </span><span class='hs-comment'>-- This instance is required to use forms. You can modify renderMessage to</span>
+<span class=hs-linenum>265: </span><span class='hs-comment'>-- achieve customized and internationalized form validation messages.</span>
+<span class=hs-linenum>266: </span><span class='hs-keyword'>instance</span> <span class='hs-conid'>RenderMessage</span> <span class='hs-conid'>App</span> <span class='hs-conid'>FormMessage</span> <span class='hs-keyword'>where</span>
+<span class=hs-linenum>267: </span>    <span class='hs-varid'>renderMessage</span> <span class='hs-keyword'>_</span> <span class='hs-keyword'>_</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>defaultFormMessage</span>
+<span class=hs-linenum>268: </span>
+<span class=hs-linenum>269: </span><span class='hs-comment'>-- Useful when writing code that is re-usable outside of the Handler context.</span>
+<span class=hs-linenum>270: </span><span class='hs-comment'>-- An example is background jobs that send email.</span>
+<span class=hs-linenum>271: </span><span class='hs-comment'>-- This can also be useful for writing code that works across multiple Yesod applications.</span>
+<span class=hs-linenum>272: </span><span class='hs-keyword'>instance</span> <span class='hs-conid'>HasHttpManager</span> <span class='hs-conid'>App</span> <span class='hs-keyword'>where</span>
+<span class=hs-linenum>273: </span>    <span class='hs-varid'>getHttpManager</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>appHttpManager</span>
+<span class=hs-linenum>274: </span>
+<span class=hs-linenum>275: </span><span class='hs-definition'>unsafeHandler</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>App</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Handler</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-varid'>a</span>
+<span class=hs-linenum>276: </span><span class='hs-definition'>unsafeHandler</span> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>Unsafe</span><span class='hs-varop'>.</span><span class='hs-varid'>fakeHandlerGetLogger</span> <span class='hs-varid'>appLogger</span>
+<span class=hs-linenum>277: </span>
+<span class=hs-linenum>278: </span><span class='hs-comment'>-- Note: Some functionality previously present in the scaffolding has been</span>
+<span class=hs-linenum>279: </span><span class='hs-comment'>-- moved to documentation in the Wiki. Following are some hopefully helpful</span>
+<span class=hs-linenum>280: </span><span class='hs-comment'>-- links:</span>
+<span class=hs-linenum>281: </span><span class='hs-comment'>--</span>
+<span class=hs-linenum>282: </span><span class='hs-comment'>-- https://github.com/yesodweb/yesod/wiki/Sending-email</span>
+<span class=hs-linenum>283: </span><span class='hs-comment'>-- https://github.com/yesodweb/yesod/wiki/Serve-static-files-from-a-separate-domain</span>
+<span class=hs-linenum>284: </span><span class='hs-comment'>-- https://github.com/yesodweb/yesod/wiki/i18n-messages-in-the-scaffolding</span>
+</pre>
+</body>
+</html>

@@ -1,0 +1,25 @@
+User
+    email Text
+    password Text Maybe -- Password may not be set yet
+    verkey Text Maybe -- Used for resetting passwords
+    verified Bool
+    UniqueUser email
+    deriving Typeable
+Email
+    email Text
+    userId UserId Maybe
+    verkey Text Maybe
+    UniqueEmail email
+Comment json -- Adding "json" causes ToJSON and FromJSON instances to be derived.
+    message Text
+    userId UserId Maybe
+    deriving Eq
+    deriving Show
+Person
+    email Text
+    UniquePerson email
+    name String
+    street String
+    number String
+    deriving Show 
+ -- By default this file is used in Model.hs (which is imported by Foundation.hs)
