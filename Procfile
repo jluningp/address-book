@@ -87,4 +87,4 @@
 
 
 # Heroku configuration that runs your app
-web: .stack-work/dist/x86_64-linux/Cabal-1.24.2.0/build/address-book/address-book -p $PORT
+web: .stack-work/dist/x86_64-linux/Cabal-1.24.2.0/build/address-book/address-book stack.yaml
