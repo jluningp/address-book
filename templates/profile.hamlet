@@ -1,7 +1,16 @@
 <h1> Profile
-<p>
-        Name: #{name}
-<p>
-        Address: #{number} #{street}
-<p>
-        <a href=@{HomeR}>Back to Home
+<form method=post action=@{(UpdatePersonR personId)}>
+        <p>
+                Email: #{email}
+        <p>
+                Address: #{number} #{street}
+        $if canEdit
+            <p>
+                    Update your information:
+            <p>
+                    ^{widget}
+            <p>
+                   <button>Update Details
+        $else
+        
+<a href=@{HomeR}>Back to Home

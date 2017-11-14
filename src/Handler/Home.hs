@@ -22,12 +22,45 @@ data FileForm = FileForm
 -- The majority of the code you will write in Yesod lives in these handler
 -- functions. You can spread them across multiple files if you are so
 -- inclined, or create a single monolithic file.
+
+getAuthPerson :: Handler (Maybe (Key Person, Person))
+getAuthPerson = do
+  myId <- maybeAuthId
+  route <- case myId of
+             Nothing -> return $ Nothing
+             Just id -> runDB $ do
+               user <- get id
+               route <- 
+                  case user of
+                    Nothing -> return $ Nothing
+                    Just u -> do 
+                      x <- getBy $ UniquePerson (userEmail u)
+                      route <- case x of
+                                 Nothing -> return $ Nothing
+                                 Just (Entity uid person) -> return $ Just (uid, person)
+                      return route
+               return route
+  return route
+    
+
+getPersonDetails :: Text -> Handler (Maybe (PersonId, Person))
+getPersonDetails email = do
+  maybePerson <- runDB $ getBy $ UniquePerson email
+  case maybePerson of
+    Nothing -> return Nothing
+    Just (Entity uid person) -> return $ Just (uid, person)
+
+getFriendPrintout :: Maybe (PersonId, Person) -> Text
+getFriendPrintout maybePerson =
+  case maybePerson of
+    Nothing -> ""
+    Just (_, Person _ name street number) -> name ++ ": " ++ number ++ " " ++ street 
+
+
 getHomeR :: Handler Html
 getHomeR = do
-    (formWidget, formEnctype) <- generateFormPost sampleForm
-    let submission = Nothing :: Maybe FileForm
-        handlerName = "getHomeR" :: Text
     myId <- maybeAuthId
+    maybePerson <- Import.getAuthPerson
     link <- case myId of
               Nothing -> return $ AuthR LoginR
               Just id -> runDB $ do
@@ -42,6 +75,11 @@ getHomeR = do
                                         Just (Entity uid _) -> return $ ProfileR uid
                              return route
                 return route
+    friendEmailList <- case maybePerson of
+                         Just (pid, _) -> Import.getFriendList pid
+                         Nothing -> return []
+    friendPersonList <- mapM getPersonDetails friendEmailList
+    friendList <- return $ map getFriendPrintout friendPersonList
     defaultLayout $ do
         let (commentFormId, commentTextareaId, commentListId) = commentIds
         aDomId <- newIdent

@@ -11,3 +11,7 @@
 /profile/#PersonId ProfileR GET
 
 /browse BrowseR GET
+
+/update-person/#PersonId UpdatePersonR POST
+
+/add-friend/#PersonId AddFriendR GET

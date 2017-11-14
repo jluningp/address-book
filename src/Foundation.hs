@@ -121,7 +121,9 @@ instance Yesod App where
     isAuthorized RobotsR _ = return Authorized
     isAuthorized (StaticR _) _ = return Authorized
     isAuthorized BrowseR _ = return Authorized
-    isAuthorized (ProfileR _) _ = isAuthenticated --Change isAuthenticated when you get authentication working
+    isAuthorized (ProfileR personId) _ = authorizedFriend personId--Change isAuthenticated when you get authentication working
+    isAuthorized (UpdatePersonR personId) _ = isAuthenticated personId
+    isAuthorized (AddFriendR personId) _ = return Authorized
 
     -- This function creates static content files in the static folder
     -- and names them based on a hash of their content. This allows
@@ -226,13 +228,85 @@ instance YesodAuthEmail App where
                 }
       getEmail = runDB . fmap (fmap userEmail) . get
 
--- | Access function to determine if a user is logged in.
-isAuthenticated :: Handler AuthResult
-isAuthenticated = do
+
+getAuthPerson :: Handler (Maybe (Key Person, Person))
+getAuthPerson = do
+    myId <- maybeAuthId
+    authPerson <- case myId of
+                   Nothing -> return $ Nothing
+                   Just id -> runDB $ do
+                     user <- get id
+                     authPerson <-
+                       case user of
+                         Nothing -> return $ Nothing
+                         Just u -> do
+                           x <- getBy $ UniquePerson (userEmail u)
+                           authPerson <- case x of
+                                           Nothing -> return $ Nothing
+                                           Just (Entity uid person) -> return $ Just (uid, person)
+                           return authPerson
+                     return authPerson
+    return authPerson
+
+getFriendList :: PersonId -> Handler [Text]
+getFriendList personId = do
+  personOpt <- runDB $ get personId
+  case personOpt of
+    Nothing -> return []
+    Just (Person email _ _ _) -> 
+      runDB $ do
+        friendsOpt <- getBy $ UniqueFriend email
+        case friendsOpt of
+          Nothing -> return []
+          Just (Entity uid (Friends _ friendList)) -> return friendList
+  
+isFriend :: PersonId -> Handler Bool
+isFriend p2 = do
+  muid <- maybeAuthId
+  pid <- getAuthPerson
+  case pid of
+    Nothing -> return False
+    Just (p1, Person email1 _ _ _) -> do
+      friendList <- getFriendList p1
+      person2Opt <- runDB $ get p2
+      case person2Opt of
+        Nothing -> return False
+        Just (Person email2 _ _ _) -> return $ any (\x -> email2 == x) friendList
+
+isMe :: PersonId -> Handler Bool
+isMe personId = do
     muid <- maybeAuthId
-    return $ case muid of
-        Nothing -> Unauthorized "You must login to access this page"
-        Just _ -> Authorized
+    pid <- getAuthPerson
+    case muid of
+        Nothing -> return False
+        Just id -> case pid of
+                     Nothing -> return False
+                     Just (pid, _) -> do
+                       if pid == personId
+                         then return True
+                         else return False
+
+authorizedFriend :: PersonId -> Handler AuthResult
+authorizedFriend personId = do
+  friend <- isFriend personId
+  me <- isMe personId
+  if friend || me
+    then return Authorized
+    else return $ Unauthorized "If you want to view this page, send a friend request."
+
+-- | Access function to determine if a user is logged in.
+isAuthenticated :: PersonId -> Handler AuthResult
+isAuthenticated personId = do
+    muid <- maybeAuthId
+    pid <- getAuthPerson
+    case muid of
+        Nothing -> return $ Unauthorized "You must login to access this page"
+        Just id -> case pid of
+                     Nothing -> return $ Unauthorized "Account invalid. Please log in."
+                     Just (pid, _) -> do
+                       if pid == personId
+                         then return Authorized
+                         else return $ Unauthorized "You do not have permission to view this page."
 
 instance YesodAuthPersist App
 

@@ -2,12 +2,12 @@
 <div .main>
               <div>
                  <h2> Your Addresses </h2>
-                 Looks like you don't have any addresses yet. Click the browse tab
-                 to find people to request an address from.
+                 $forall email <- friendList
+                         <p>
+                                #{email}
               <div>
-                 <h2> People You've Shared With </h2>
-                 Looks like you haven't sent your address to anyone yet. No Christmas cards
-                 for you! Click the browse tab to find people to send you address to.
+                 <h2> Friend Requests </h2>
+                 
 <div .sidebar>
                 <a href=@{link}>
                    <div .links>

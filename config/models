@@ -18,8 +18,14 @@ Comment json -- Adding "json" causes ToJSON and FromJSON instances to be derived
 Person
     email Text
     UniquePerson email
-    name String
-    street String
-    number String
+    name Text
+    street Text
+    number Text
     deriving Show 
- -- By default this file is used in Model.hs (which is imported by Foundation.hs)
+Friends
+    email Text
+    UniqueFriend email
+    friends [Text]
+
+-- By default this file is used in Model.hs (which is imported by Foundation.hs)
+
