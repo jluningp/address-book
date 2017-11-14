@@ -1,13 +1,19 @@
 <center><h1>Welcome to Your Address Book!</h1></center>
 <div .main>
               <div>
-                 <h2> Your Addresses </h2>
-                 $forall email <- friendList
-                         <p>
-                                #{email}
-              <div>
-                 <h2> Friend Requests </h2>
-                 
+                $if loggedIn
+                    <h2> Your Addresses </h2>
+                    $if null friendList
+                         <p>         
+                              Click browse to add friends!
+                    $else 
+                         $forall email <- friendList
+                                 <p>
+                                         #{email}
+                     <div>
+                         <h2> Friend Requests </h2>
+                $else
+                        Click profile to log in.
 <div .sidebar>
                 <a href=@{link}>
                    <div .links>

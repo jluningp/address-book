@@ -15,3 +15,5 @@
 /update-person/#PersonId UpdatePersonR POST
 
 /add-friend/#PersonId AddFriendR GET
+
+/confirm-link/#Text ConfirmLinkR GET

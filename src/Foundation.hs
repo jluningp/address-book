@@ -124,6 +124,7 @@ instance Yesod App where
     isAuthorized (ProfileR personId) _ = authorizedFriend personId--Change isAuthenticated when you get authentication working
     isAuthorized (UpdatePersonR personId) _ = isAuthenticated personId
     isAuthorized (AddFriendR personId) _ = return Authorized
+    isAuthorized (ConfirmLinkR personId) _ = return Authorized
 
     -- This function creates static content files in the static folder
     -- and names them based on a hash of their content. This allows
@@ -194,15 +195,15 @@ instance YesodAuthEmail App where
 
       addUnverified email verkey = do
         uid <- runDB $ insert $ User email Nothing (Just verkey) False
-        liftIO $ print uid
         return uid
         --redirect AuthR $ verifyR uid verkey
       
       sendVerifyEmail email verkey verurl = do
         -- Print out to the console the verification email, for easier
-        -- debugging.  
-        liftIO $ putStrLn $ "Copy/ Paste this URL in your browser:" ++ verurl
-      
+        -- debugging.
+        redirect $ ConfirmLinkR verurl
+        --liftIO $ putStrLn $ "Copy/ Paste this URL in your browser:" ++ verurl
+        
       getVerifyKey = runDB . fmap (join . fmap userVerkey) . get
       setVerifyKey uid key = runDB $ update uid [UserVerkey =. Just key]
       verifyAccount uid = runDB $ do
@@ -227,7 +228,6 @@ instance YesodAuthEmail App where
                 , emailCredsEmail = email
                 }
       getEmail = runDB . fmap (fmap userEmail) . get
-
 
 getAuthPerson :: Handler (Maybe (Key Person, Person))
 getAuthPerson = do

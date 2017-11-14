@@ -1,6 +1,8 @@
 <h1> Profile
 <form method=post action=@{(UpdatePersonR personId)}>
         <p>
+                Name: #{name}
+        <p>
                 Email: #{email}
         <p>
                 Address: #{number} #{street}

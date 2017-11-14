@@ -23,6 +23,8 @@ data FileForm = FileForm
 -- functions. You can spread them across multiple files if you are so
 -- inclined, or create a single monolithic file.
 
+
+
 getAuthPerson :: Handler (Maybe (Key Person, Person))
 getAuthPerson = do
   myId <- maybeAuthId
@@ -57,10 +59,21 @@ getFriendPrintout maybePerson =
     Just (_, Person _ name street number) -> name ++ ": " ++ number ++ " " ++ street 
 
 
+
+getConfirmLinkR :: Text -> Handler Html
+getConfirmLinkR link = do
+  defaultLayout $ do 
+    setTitle "Create Account"
+    $(widgetFile "showlink")
+  
+
 getHomeR :: Handler Html
 getHomeR = do
     myId <- maybeAuthId
     maybePerson <- Import.getAuthPerson
+    loggedIn <- case maybePerson of
+                  Nothing -> return False
+                  Just _ -> return True
     link <- case myId of
               Nothing -> return $ AuthR LoginR
               Just id -> runDB $ do
