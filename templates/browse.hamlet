@@ -1,10 +1,13 @@
 <h1> Browse People </h1>
                         <table>
-                            $forall (Entity personid person, showFriend) <- people
+                            $forall (Entity personid person, showFriend, showRequest) <- people
                                <tr .people>
                                   <td>#{personName person}</td>
                                   $if showFriend
                                       <td><a href=@{ProfileR personid}> [Profile]</a></td>
                                   $else
-                                      <td><a href=@{AddFriendR personid}> [Add Friend]</td>
+                                        $if showRequest
+                                            <td> [Friend Request Sent] </td>
+                                        $else 
+                                            <td><a href=@{AddFriendR personid}> [Add Friend]</td>
                         <a href=@{HomeR}>Back to Home

@@ -10,8 +10,15 @@
                          $forall email <- friendList
                                  <p>
                                          #{email}
-                     <div>
-                         <h2> Friend Requests </h2>
+                    $if null requestList
+                    $else
+                        <h2> Friend Requests </h2>
+                        $forall (pid, name) <- requestList
+                                <p>
+                                        <a href=@{ConfirmFriendR pid}>
+                                            #{name}
+                    
+                    
                 $else
                         Click profile to log in.
 <div .sidebar>

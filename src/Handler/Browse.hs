@@ -12,13 +12,15 @@ getBrowseR = do
   peopleList <- runDB $ selectList [] [Asc PersonName]
   authPerson <- Import.getAuthPerson
   people <- case authPerson of
-              Nothing -> return $ map (\x -> (x, False)) peopleList
+              Nothing -> return $ map (\x -> (x, False, False)) peopleList
               Just (pid, _) -> do
                 friendList <- Import.getFriendList pid
+                requestList <- Import.getOutgoingRequestList pid
                 mapM (\(Entity x (Person email name street number)) -> do
                         me <- Import.isMe x 
                         return $ (Entity x (Person email name street number),
-                                  any (\y -> y == email || me) friendList)) peopleList 
+                                  any (\y -> y == email) friendList || me,
+                                  any (\y -> y == email) requestList || me)) peopleList 
   defaultLayout $(widgetFile "browse")
 
 
@@ -49,10 +51,43 @@ getAddFriendR personId = do
   case authPerson of
     Nothing -> redirect HomeR --will change
     Just (myId, Person myEmail _ _ _) -> runDB $ do
+      theirFriends <- getBy $ UniqueFriend email
       myFriends <- getBy $ UniqueFriend myEmail
+      case theirFriends of
+        Nothing -> do
+          insert $ Friends email [myEmail] [] []
+          return ()
+        Just (Entity uid (Friends _ requests friendList _)) -> update uid [FriendsRequests =. (myEmail:requests)]
       case myFriends of
         Nothing -> do
-          insert $ Friends myEmail [email]
+          insert $ Friends myEmail [] [] [email]
           return ()
-        Just (Entity uid (Friends _ friendList)) -> update uid [FriendsFriends =. (email:friendList)]
+        Just (Entity uid (Friends _ _ _ outgoing)) -> update uid [FriendsOutgoingRequests =. (email:outgoing)]
+  redirect $ BrowseR
+
+getConfirmFriendR :: PersonId -> Handler Html
+getConfirmFriendR personId = do
+  Person email name street number <- runDB $ get404 personId
+  authPerson <- Import.getAuthPerson
+  case authPerson of
+    Nothing -> redirect HomeR --will change
+    Just (myId, Person myEmail _ _ _) -> runDB $ do
+      theirFriends <- getBy $ UniqueFriend email
+      myFriends <- getBy $ UniqueFriend myEmail
+      case theirFriends of
+        Nothing -> do
+          insert $ Friends email [] [myEmail] []
+          return ()
+        Just (Entity uid (Friends _ requests friendList _)) -> 
+          update uid [FriendsFriends =. (myEmail:friendList),
+                      FriendsOutgoingRequests =. (filter (\x -> x /= myEmail) requests)]
+      case myFriends of
+       Nothing -> do
+         insert $ Friends myEmail [] [email] []
+         return ()
+       Just (Entity uid (Friends _ _ friendList outgoing)) ->
+         update uid [FriendsFriends =. (email:friendList),
+                     FriendsRequests =. (filter (\x -> x /= email) outgoing)]
+         
   redirect $ ProfileR personId
+

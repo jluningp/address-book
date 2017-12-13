@@ -8,13 +8,13 @@ module Handler.Profile where
 import Yesod.Form.Jquery
 import Import
 
-data PersonDetails = PersonDetails Text Text Text
+data PersonDetails = PersonDetails Text Text Int
 
 personForm :: Person -> Html -> MForm Handler (FormResult PersonDetails, Widget)
 personForm (Person email name street number)  = renderDivs $ PersonDetails 
   <$> areq textField "Name:    " (Just name)
   <*> areq textField "Street:  " (Just street)
-  <*> areq textField "Number:  " (Just number)
+  <*> areq intField "Number:  " (Just number)
   
 
 getProfileR :: PersonId -> Handler Html

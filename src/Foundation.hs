@@ -125,6 +125,7 @@ instance Yesod App where
     isAuthorized (UpdatePersonR personId) _ = isAuthenticated personId
     isAuthorized (AddFriendR personId) _ = return Authorized
     isAuthorized (ConfirmLinkR personId) _ = return Authorized
+    isAuthorized (ConfirmFriendR personId) _ = authorizedFriendRequest personId
 
     -- This function creates static content files in the static folder
     -- and names them based on a hash of their content. This allows
@@ -211,7 +212,7 @@ instance YesodAuthEmail App where
         case mu of
           Nothing -> return Nothing
           Just u -> do
-            insert $ Person (userEmail u) "[No Name]" "[No Number]" "[No Street]"
+            insert $ Person (userEmail u) "[No Name]" "[No Street]" 0 
             update uid [UserVerified =. True]
             return $ Just uid
       getPassword = runDB . fmap (join . fmap userPassword) . get
@@ -248,6 +249,7 @@ getAuthPerson = do
                      return authPerson
     return authPerson
 
+
 getFriendList :: PersonId -> Handler [Text]
 getFriendList personId = do
   personOpt <- runDB $ get personId
@@ -258,7 +260,33 @@ getFriendList personId = do
         friendsOpt <- getBy $ UniqueFriend email
         case friendsOpt of
           Nothing -> return []
-          Just (Entity uid (Friends _ friendList)) -> return friendList
+          Just (Entity uid (Friends _ _ friendList _)) -> return friendList
+
+getRequestList :: PersonId -> Handler [Text]
+getRequestList personId = do
+  personOpt <- runDB $ get personId
+  case personOpt of
+    Nothing -> return []
+    Just (Person email _ _ _) -> 
+      runDB $ do
+        friendsOpt <- getBy $ UniqueFriend email
+        case friendsOpt of
+          Nothing -> return []
+          Just (Entity uid (Friends _ requestList _ _)) -> return requestList
+  
+getOutgoingRequestList :: PersonId -> Handler [Text]
+getOutgoingRequestList personId = do
+  personOpt <- runDB $ get personId
+  case personOpt of
+    Nothing -> return []
+    Just (Person email _ _ _) -> 
+      runDB $ do
+        friendsOpt <- getBy $ UniqueFriend email
+        case friendsOpt of
+          Nothing -> return []
+          Just (Entity uid (Friends _ _ _ outgoingRequests)) -> return outgoingRequests
+  
+
   
 isFriend :: PersonId -> Handler Bool
 isFriend p2 = do
@@ -272,6 +300,21 @@ isFriend p2 = do
       case person2Opt of
         Nothing -> return False
         Just (Person email2 _ _ _) -> return $ any (\x -> email2 == x) friendList
+
+
+isFriendRequest :: PersonId -> Handler Bool
+isFriendRequest p2 = do
+  muid <- maybeAuthId
+  pid <- getAuthPerson
+  case pid of
+    Nothing -> return False
+    Just (p1, Person email1 _ _ _) -> do
+      friendList <- getRequestList p1
+      person2Opt <- runDB $ get p2
+      case person2Opt of
+        Nothing -> return False
+        Just (Person email2 _ _ _) -> return $ any (\x -> email2 == x) friendList
+
 
 isMe :: PersonId -> Handler Bool
 isMe personId = do
@@ -293,6 +336,15 @@ authorizedFriend personId = do
   if friend || me
     then return Authorized
     else return $ Unauthorized "If you want to view this page, send a friend request."
+
+authorizedFriendRequest :: PersonId -> Handler AuthResult
+authorizedFriendRequest personId = do
+  friend <- isFriendRequest personId
+  me <- isMe personId
+  if friend || me
+    then return Authorized
+    else return $ Unauthorized "If you want to view this page, send a friend request."
+
 
 -- | Access function to determine if a user is logged in.
 isAuthenticated :: PersonId -> Handler AuthResult
