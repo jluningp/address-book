@@ -10,7 +10,7 @@ Email
    userId UserId Maybe
    verkey Text Maybe
    UniqueEmail email
-   Comment json
+Comment json
    message Text
    userId UserId Maybe
    deriving Eq
