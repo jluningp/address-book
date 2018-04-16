@@ -3,19 +3,27 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies #-}
+
+{-@ LIQUID "--no-adt" 	                           @-}
+{-@ LIQUID "--exact-data-con"                      @-}
+{-@ LIQUID "--higherorder"                         @-}
+{-@ LIQUID "--no-termination"                      @-}
+{-@ LIQUID "--ple" @-}
+
 module Handler.Profile where
 
 import Yesod.Form.Jquery
 import Import
+import BinahLibrary hiding (filter)
 
 data PersonDetails = PersonDetails Text Text Int
 
 personForm :: Person -> Html -> MForm Handler (FormResult PersonDetails, Widget)
-personForm (Person email name street number)  = renderDivs $ PersonDetails 
-  <$> areq textField "Name:    " (Just name)
-  <*> areq textField "Street:  " (Just street)
-  <*> areq intField "Number:  " (Just number)
-  
+personForm (Person email name street number)  = renderDivs $ PersonDetails
+  <$> areq textField "Name:    " (Just $ pack name)
+  <*> areq textField "Street:  " (Just $ pack street)
+  <*> areq intField "Number:  " (Just $ number)
+
 
 getProfileR :: PersonId -> Handler Html
 getProfileR personId = do
@@ -25,14 +33,26 @@ getProfileR personId = do
   defaultLayout $ do
     $(widgetFile "profile")
 
+{-@ nonEmpty :: {l:[a] | True} -> {r:Bool | r <=> (len(l) > 0)} @-}
+nonEmpty :: [a] -> Bool
+nonEmpty [] = False
+nonEmpty (x:xs) = True
+
+
 postUpdatePersonR :: PersonId -> Handler ()
 postUpdatePersonR personId = do
   Person email name street number <- runDB $ get404 personId
   ((result, widget), enctype) <- runFormPost $ personForm (Person email name street number)
   case result of
-    FormSuccess (PersonDetails name street number) -> runDB $ do
-      update personId [PersonName =. name]
-      update personId [PersonStreet =. street]
-      update personId [PersonNumber =. number]
-    _ -> liftIO $ print "wtf"
+    FormSuccess (PersonDetails name street number) ->
+      let uname = unpack name
+          ustreet = unpack street
+      in
+      if nonEmpty uname && nonEmpty ustreet && number > 0
+      then runDB $ do
+        refinedUpdate personId [PersonName =# uname]
+        refinedUpdate personId [PersonStreet =# ustreet]
+        refinedUpdate personId [PersonNumber =# number]
+      else liftIO $ print "Invalid Input"
+    _ -> liftIO $ print "An Odd Error Occurred"
   redirect $ ProfileR personId

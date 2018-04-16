@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 67cf713dce8f42fa0e41e6034aff6e6f21322376f7c131b2e73dfbe83cff1cd6
+-- hash: efa45ab7a22feb589cd05679fbbc0812b720e9c97c3ab75d824391780f5a5fc5
 
 name:           address-book
 version:        0.0.0
@@ -36,6 +36,7 @@ library
     , directory >=1.1 && <1.4
     , fast-logger >=2.2 && <2.5
     , file-embed
+    , foreign-store
     , hjsmin >=0.1 && <0.3
     , http-conduit >=2.1 && <2.3
     , monad-control >=0.3 && <1.1
@@ -48,6 +49,7 @@ library
     , template-haskell
     , text >=0.11 && <2.0
     , time
+    , transformers
     , unordered-containers
     , vector
     , wai
@@ -67,9 +69,9 @@ library
     ghc-options: -Wall -fwarn-tabs -O2
   exposed-modules:
       Application
+      BinahLibrary
       Foundation
       Handler.Browse
-      Handler.Comment
       Handler.Common
       Handler.Home
       Handler.Profile
@@ -102,6 +104,7 @@ executable address-book
     , directory >=1.1 && <1.4
     , fast-logger >=2.2 && <2.5
     , file-embed
+    , foreign-store
     , hjsmin >=0.1 && <0.3
     , http-conduit >=2.1 && <2.3
     , monad-control >=0.3 && <1.1
@@ -114,6 +117,7 @@ executable address-book
     , template-haskell
     , text >=0.11 && <2.0
     , time
+    , transformers
     , unordered-containers
     , vector
     , wai
@@ -154,6 +158,7 @@ test-suite test
     , directory >=1.1 && <1.4
     , fast-logger >=2.2 && <2.5
     , file-embed
+    , foreign-store
     , hjsmin >=0.1 && <0.3
     , hspec >=2.0.0
     , http-conduit >=2.1 && <2.3
@@ -168,6 +173,7 @@ test-suite test
     , template-haskell
     , text >=0.11 && <2.0
     , time
+    , transformers
     , unordered-containers
     , vector
     , wai

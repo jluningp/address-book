@@ -32,10 +32,10 @@ getAuthPerson = do
              Nothing -> return $ Nothing
              Just id -> runDB $ do
                user <- get id
-               route <- 
+               route <-
                   case user of
                     Nothing -> return $ Nothing
-                    Just u -> do 
+                    Just u -> do
                       x <- getBy $ UniquePerson (userEmail u)
                       route <- case x of
                                  Nothing -> return $ Nothing
@@ -43,30 +43,30 @@ getAuthPerson = do
                       return route
                return route
   return route
-    
 
-getPersonDetails :: Text -> Handler (Maybe (PersonId, Person))
+
+getPersonDetails :: String -> Handler (Maybe (PersonId, Person))
 getPersonDetails email = do
   maybePerson <- runDB $ getBy $ UniquePerson email
   case maybePerson of
     Nothing -> return Nothing
     Just (Entity uid person) -> return $ Just (uid, person)
 
-getFriendPrintout :: Maybe (PersonId, Person) -> Text
+getFriendPrintout :: Maybe (PersonId, Person) -> String
 getFriendPrintout maybePerson =
   case maybePerson of
     Nothing -> ""
-    Just (_, Person _ name street number) -> name ++ (fromString ": ") ++ (fromString (show number)) ++ (fromString " ") ++ street 
+    Just (_, Person _ name street number) -> name ++ (fromString ": ") ++ (fromString (show number)) ++ (fromString " ") ++ street
 
-getRequestPrintout :: (PersonId, Person) -> (PersonId, Text)
+getRequestPrintout :: (PersonId, Person) -> (PersonId, String)
 getRequestPrintout (pid, Person _ name _ _) = (pid, name)
 
-getConfirmLinkR :: Text -> Handler Html
+getConfirmLinkR :: String -> Handler Html
 getConfirmLinkR link = do
-  defaultLayout $ do 
+  defaultLayout $ do
     setTitle "Create Account"
     $(widgetFile "showlink")
-  
+
 
 getHomeR :: Handler Html
 getHomeR = do
@@ -82,7 +82,7 @@ getHomeR = do
                 route <-
                   case user of
                            Nothing -> return $ AuthR LoginR
-                           Just u -> do 
+                           Just u -> do
                              x  <- getBy $ UniquePerson (userEmail u)
                              route <- case x of
                                         Nothing -> return $ AuthR LoginR
@@ -96,13 +96,12 @@ getHomeR = do
     requestEmailList <- case maybePerson of
                           Just (pid, _) -> Import.getRequestList pid
                           Nothing -> return []
-    friendPersonList <- mapM getPersonDetails friendEmailList
-    requestMaybePersonList <- mapM getPersonDetails requestEmailList
+    friendPersonList <- mapM getPersonDetails $ map unpack friendEmailList
+    requestMaybePersonList <- mapM getPersonDetails $ map unpack requestEmailList
     requestPersonList <- return $ mapMaybe (\x -> x) requestMaybePersonList
     friendList <- return $ map getFriendPrintout friendPersonList
     requestList <- return $ map getRequestPrintout requestPersonList
     defaultLayout $ do
-        let (commentFormId, commentTextareaId, commentListId) = commentIds
         aDomId <- newIdent
         setTitle "Welcome To Yesod!"
         $(widgetFile "homepage")
@@ -122,6 +121,3 @@ sampleForm = renderBootstrap3 BootstrapBasicForm $ FileForm
                 , ("placeholder", "File description")
                 ]
             }
-
-commentIds :: (Text, Text, Text)
-commentIds = ("js-commentForm", "js-createCommentTextarea", "js-commentList")
