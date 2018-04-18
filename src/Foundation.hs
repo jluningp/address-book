@@ -1,4 +1,4 @@
-{-# LANGUAGE NoImplicitPrelude #-} 
+{-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -115,7 +115,6 @@ instance Yesod App where
 
     -- Routes not requiring authentication.
     isAuthorized (AuthR _) _ = return Authorized
-    isAuthorized CommentR _ = return Authorized
     isAuthorized HomeR _ = return Authorized
     isAuthorized FaviconR _ = return Authorized
     isAuthorized RobotsR _ = return Authorized
@@ -180,7 +179,7 @@ instance YesodAuth App where
 
       -- Need to find the UserId for the given email address.
       getAuthId creds = runDB $ do
-        x <- insertBy $ User (credsIdent creds) Nothing Nothing False
+        x <- insertBy $ User (unpack (credsIdent creds)) Nothing Nothing False
         return $ Just $
           case x of
             Left (Entity userid _) -> userid -- newly added user
@@ -195,40 +194,40 @@ instance YesodAuthEmail App where
       afterPasswordRoute _ = HomeR
 
       addUnverified email verkey = do
-        uid <- runDB $ insert $ User email Nothing (Just verkey) False
+        uid <- runDB $ insert $ User (unpack email) Nothing (Just (unpack verkey)) False
         return uid
         --redirect AuthR $ verifyR uid verkey
-      
+
       sendVerifyEmail email verkey verurl = do
         -- Print out to the console the verification email, for easier
         -- debugging.
-        redirect $ ConfirmLinkR verurl
+        redirect $ ConfirmLinkR $ unpack verurl
         --liftIO $ putStrLn $ "Copy/ Paste this URL in your browser:" ++ verurl
-        
-      getVerifyKey = runDB . fmap (join . fmap userVerkey) . get
-      setVerifyKey uid key = runDB $ update uid [UserVerkey =. Just key]
+
+      getVerifyKey = runDB . fmap (fmap pack . join . fmap userVerkey) . get
+      setVerifyKey uid key = runDB $ update uid [UserVerkey =. Just (unpack key)]
       verifyAccount uid = runDB $ do
         mu <- get uid
         case mu of
           Nothing -> return Nothing
           Just u -> do
-            insert $ Person (userEmail u) "[No Name]" "[No Street]" 0 
+            insert $ Person (userEmail u) "[No Name]" "[No Street]" 0
             update uid [UserVerified =. True]
             return $ Just uid
-      getPassword = runDB . fmap (join . fmap userPassword) . get
-      setPassword uid pass = runDB $ update uid [UserPassword =. Just pass]
+      getPassword = runDB . fmap (fmap pack . join . fmap userPassword) . get
+      setPassword uid pass = runDB $ update uid [UserPassword =. Just (unpack pass)]
       getEmailCreds email = runDB $ do
-        mu <- getBy $ UniqueUser email
+        mu <- getBy $ UniqueUser (unpack email)
         case mu of
           Nothing -> return Nothing
           Just (Entity uid u) -> return $ Just EmailCreds
                 { emailCredsId = uid
                 , emailCredsAuthId = Just uid
                 , emailCredsStatus = isJust $ userPassword u
-                , emailCredsVerkey = userVerkey u
+                , emailCredsVerkey = fmap pack $ userVerkey u
                 , emailCredsEmail = email
                 }
-      getEmail = runDB . fmap (fmap userEmail) . get
+      getEmail = runDB . fmap (fmap pack . fmap userEmail) . get
 
 getAuthPerson :: Handler (Maybe (Key Person, Person))
 getAuthPerson = do
@@ -255,39 +254,39 @@ getFriendList personId = do
   personOpt <- runDB $ get personId
   case personOpt of
     Nothing -> return []
-    Just (Person email _ _ _) -> 
+    Just (Person email _ _ _) ->
       runDB $ do
         friendsOpt <- getBy $ UniqueFriend email
         case friendsOpt of
           Nothing -> return []
-          Just (Entity uid (Friends _ _ friendList _)) -> return friendList
+          Just (Entity uid (Friends _ _ friendList _)) -> return $ map pack friendList
 
 getRequestList :: PersonId -> Handler [Text]
 getRequestList personId = do
   personOpt <- runDB $ get personId
   case personOpt of
     Nothing -> return []
-    Just (Person email _ _ _) -> 
+    Just (Person email _ _ _) ->
       runDB $ do
         friendsOpt <- getBy $ UniqueFriend email
         case friendsOpt of
           Nothing -> return []
-          Just (Entity uid (Friends _ requestList _ _)) -> return requestList
-  
+          Just (Entity uid (Friends _ requestList _ _)) -> return $ map pack requestList
+
 getOutgoingRequestList :: PersonId -> Handler [Text]
 getOutgoingRequestList personId = do
   personOpt <- runDB $ get personId
   case personOpt of
     Nothing -> return []
-    Just (Person email _ _ _) -> 
+    Just (Person email _ _ _) ->
       runDB $ do
         friendsOpt <- getBy $ UniqueFriend email
         case friendsOpt of
           Nothing -> return []
-          Just (Entity uid (Friends _ _ _ outgoingRequests)) -> return outgoingRequests
-  
+          Just (Entity uid (Friends _ _ _ outgoingRequests)) -> return $ map pack outgoingRequests
 
-  
+
+
 isFriend :: PersonId -> Handler Bool
 isFriend p2 = do
   muid <- maybeAuthId
@@ -299,7 +298,7 @@ isFriend p2 = do
       person2Opt <- runDB $ get p2
       case person2Opt of
         Nothing -> return False
-        Just (Person email2 _ _ _) -> return $ any (\x -> email2 == x) friendList
+        Just (Person email2 _ _ _) -> return $ let e2 = pack email2 in any (\x -> e2 == x) friendList
 
 
 isFriendRequest :: PersonId -> Handler Bool
@@ -313,7 +312,7 @@ isFriendRequest p2 = do
       person2Opt <- runDB $ get p2
       case person2Opt of
         Nothing -> return False
-        Just (Person email2 _ _ _) -> return $ any (\x -> email2 == x) friendList
+        Just (Person email2 _ _ _) -> return $ let e2 = pack email2 in any (\x -> e2 == x) friendList
 
 
 isMe :: PersonId -> Handler Bool
