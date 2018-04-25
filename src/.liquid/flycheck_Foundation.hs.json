@@ -1,1 +1,0 @@
-{"status":"error","types":{},"errors":[{"start":{"line":8,"column":1},"stop":{"line":8,"column":7},"message":"/home/jeanne/research/address-book/src/flycheck_Foundation.hs:8:1-6: Error: GHC Error\n    parse error on input ‘module’"}]}

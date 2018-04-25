@@ -1,1 +1,0 @@
-{"status":"error","types":{},"errors":[{"start":{"line":8,"column":1},"stop":{"line":8,"column":1},"message":"/home/jeanne/research/git/address-book/src/Handler/flycheck_Profile.hs:8:1: Error: GHC Error\n    parse error (possibly incorrect indentation or mismatched brackets)"}]}

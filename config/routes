@@ -6,8 +6,6 @@
 
 / HomeR GET
 
-/comments CommentR POST
-
 /profile/#PersonId ProfileR GET
 
 /browse BrowseR GET
@@ -16,6 +14,6 @@
 
 /add-friend/#PersonId AddFriendR GET
 
-/confirm-link/#Text ConfirmLinkR GET
+/confirm-link/#String ConfirmLinkR GET
 
 /confirm-friend/#PersonId ConfirmFriendR GET
