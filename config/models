@@ -5,6 +5,7 @@ User
    ~verified Bool
    UniqueUser email
    deriving Typeable
+   deriving Show
 Email
    ~email String
    ~userId UserId Maybe

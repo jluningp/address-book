@@ -25,6 +25,7 @@ import           Data.Text hiding (map, filter)
 
 {-@ data Tagged a <p :: User -> Bool> = Tagged { content :: a } @-}
 data Tagged a = Tagged { content :: a }
+{-@ data variance Tagged covariant contravariant @-}
 
 data RefinedPersistFilter = EQUAL | NE | LE | LTP | GE | GTP
 
@@ -34,11 +35,13 @@ data RefinedPersistFilter = EQUAL | NE | LE | LTP | GE | GTP
     , refinedFilterFilter :: RefinedPersistFilter
     }
   @-}
+{-@ data variance RefinedFilter covariant covariant contravariant @-}
 data RefinedFilter record typ = RefinedFilter
     { refinedFilterField  :: EntityField record typ
     , refinedFilterValue  :: typ
     , refinedFilterFilter :: RefinedPersistFilter
     }
+
 
 {-@ data RefinedUpdate record typ = RefinedUpdate
     { refinedUpdateField :: EntityField record typ
@@ -164,16 +167,6 @@ evalQsUser :: [RefinedFilter User typ] -> User -> Bool
 evalQsUser (f:fs) x = evalQUser f x && (evalQsUser fs x)
 evalQsUser [] _ = True
 
-{-@ assume selectUser :: f:[RefinedFilter User typ]
-                -> [SelectOpt User]
-                -> Control.Monad.Trans.Reader.ReaderT backend m [Entity {v:User | evalQsUser f v}] @-}
-selectUser :: (PersistEntityBackend User ~ BaseBackend backend,
-      PersistEntity User, Control.Monad.IO.Class.MonadIO m,
-      PersistQueryRead backend, PersistField typ) =>
-      [RefinedFilter User typ]
-      -> [SelectOpt User]
-      -> Control.Monad.Trans.Reader.ReaderT backend m [Entity User]
-selectUser fs ts = selectList (map toPersistentFilter fs) ts
 {-@ reflect evalQEmailEmail @-}
 evalQEmailEmail :: RefinedPersistFilter -> [Char] -> [Char] -> Bool
 evalQEmailEmail EQUAL filter given = given == filter
@@ -206,16 +199,6 @@ evalQsEmail :: [RefinedFilter Email typ] -> Email -> Bool
 evalQsEmail (f:fs) x = evalQEmail f x && (evalQsEmail fs x)
 evalQsEmail [] _ = True
 
-{-@ assume selectEmail :: f:[RefinedFilter Email typ]
-                -> [SelectOpt Email]
-                -> Control.Monad.Trans.Reader.ReaderT backend m [Entity {v:Email | evalQsEmail f v}] @-}
-selectEmail :: (PersistEntityBackend Email ~ BaseBackend backend,
-      PersistEntity Email, Control.Monad.IO.Class.MonadIO m,
-      PersistQueryRead backend, PersistField typ) =>
-      [RefinedFilter Email typ]
-      -> [SelectOpt Email]
-      -> Control.Monad.Trans.Reader.ReaderT backend m [Entity Email]
-selectEmail fs ts = selectList (map toPersistentFilter fs) ts
 {-@ reflect evalQPersonEmail @-}
 evalQPersonEmail :: RefinedPersistFilter -> [Char] -> [Char] -> Bool
 evalQPersonEmail EQUAL filter given = given == filter
@@ -266,16 +249,6 @@ evalQsPerson :: [RefinedFilter Person typ] -> Person -> Bool
 evalQsPerson (f:fs) x = evalQPerson f x && (evalQsPerson fs x)
 evalQsPerson [] _ = True
 
-{-@ assume selectPerson :: f:[RefinedFilter Person typ]
-                -> [SelectOpt Person]
-                -> Control.Monad.Trans.Reader.ReaderT backend m [Entity {v:Person | evalQsPerson f v}] @-}
-selectPerson :: (PersistEntityBackend Person ~ BaseBackend backend,
-      PersistEntity Person, Control.Monad.IO.Class.MonadIO m,
-      PersistQueryRead backend, PersistField typ) =>
-      [RefinedFilter Person typ]
-      -> [SelectOpt Person]
-      -> Control.Monad.Trans.Reader.ReaderT backend m [Entity Person]
-selectPerson fs ts = selectList (map toPersistentFilter fs) ts
 {-@ reflect evalQFriendsEmail @-}
 evalQFriendsEmail :: RefinedPersistFilter -> [Char] -> [Char] -> Bool
 evalQFriendsEmail EQUAL filter given = given == filter
@@ -326,127 +299,133 @@ evalQsFriends :: [RefinedFilter Friends typ] -> Friends -> Bool
 evalQsFriends (f:fs) x = evalQFriends f x && (evalQsFriends fs x)
 evalQsFriends [] _ = True
 
-{-@ assume selectFriends :: f:[RefinedFilter Friends typ]
-                -> [SelectOpt Friends]
-                -> Control.Monad.Trans.Reader.ReaderT backend m [Entity {v:Friends | evalQsFriends f v}] @-}
-selectFriends :: (PersistEntityBackend Friends ~ BaseBackend backend,
-      PersistEntity Friends, Control.Monad.IO.Class.MonadIO m,
-      PersistQueryRead backend, PersistField typ) =>
-      [RefinedFilter Friends typ]
-      -> [SelectOpt Friends]
-      -> Control.Monad.Trans.Reader.ReaderT backend m [Entity Friends]
-selectFriends fs ts = selectList (map toPersistentFilter fs) ts
-
 {-@ filterUserEmail :: RefinedPersistFilter -> String -> RefinedFilter<{\u -> true}> User (String) @-}
 {-@ reflect filterUserEmail @-}
-filterUserEmail :: RefinedPersistFilter -> String -> RefinedFilter User String
+filterUserEmail :: RefinedPersistFilter -> String -> RefinedFilter User (String)
 filterUserEmail f v = RefinedFilter UserEmail v f
 
 {-@ filterUserPassword :: RefinedPersistFilter -> Maybe String -> RefinedFilter<{\u -> true}> User (Maybe String) @-}
 {-@ reflect filterUserPassword @-}
 filterUserPassword :: RefinedPersistFilter -> Maybe String -> RefinedFilter User (Maybe String)
 filterUserPassword f v = RefinedFilter UserPassword v f
+
 {-@ filterUserVerkey :: RefinedPersistFilter -> Maybe String -> RefinedFilter<{\u -> true}> User (Maybe String) @-}
 {-@ reflect filterUserVerkey @-}
 filterUserVerkey :: RefinedPersistFilter -> Maybe String -> RefinedFilter User (Maybe String)
 filterUserVerkey f v = RefinedFilter UserVerkey v f
+
 {-@ filterUserVerified :: RefinedPersistFilter -> Bool -> RefinedFilter<{\u -> true}> User (Bool) @-}
 {-@ reflect filterUserVerified @-}
-filterUserVerified :: RefinedPersistFilter -> Bool -> RefinedFilter User Bool
+filterUserVerified :: RefinedPersistFilter -> Bool -> RefinedFilter User (Bool)
 filterUserVerified f v = RefinedFilter UserVerified v f
+
 {-@ filterEmailEmail :: RefinedPersistFilter -> String -> RefinedFilter<{\u -> true}> Email (String) @-}
 {-@ reflect filterEmailEmail @-}
-filterEmailEmail :: RefinedPersistFilter -> String -> RefinedFilter Email String
+filterEmailEmail :: RefinedPersistFilter -> String -> RefinedFilter Email (String)
 filterEmailEmail f v = RefinedFilter EmailEmail v f
+
 {-@ filterEmailUserId :: RefinedPersistFilter -> Maybe UserId -> RefinedFilter<{\u -> true}> Email (Maybe UserId) @-}
 {-@ reflect filterEmailUserId @-}
 filterEmailUserId :: RefinedPersistFilter -> Maybe UserId -> RefinedFilter Email (Maybe UserId)
 filterEmailUserId f v = RefinedFilter EmailUserId v f
+
 {-@ filterEmailVerkey :: RefinedPersistFilter -> Maybe String -> RefinedFilter<{\u -> true}> Email (Maybe String) @-}
 {-@ reflect filterEmailVerkey @-}
 filterEmailVerkey :: RefinedPersistFilter -> Maybe String -> RefinedFilter Email (Maybe String)
 filterEmailVerkey f v = RefinedFilter EmailVerkey v f
+
 {-@ filterPersonEmail :: RefinedPersistFilter -> String -> RefinedFilter<{\u -> true}> Person (String) @-}
 {-@ reflect filterPersonEmail @-}
-filterPersonEmail :: RefinedPersistFilter -> String -> RefinedFilter Person String
+filterPersonEmail :: RefinedPersistFilter -> String -> RefinedFilter Person (String)
 filterPersonEmail f v = RefinedFilter PersonEmail v f
-{-@ filterPersonName :: RefinedPersistFilter -> {v:String | len v > 0} -> RefinedFilter<{\u -> true}> Person (String) @-}
+
+{-@ filterPersonName :: RefinedPersistFilter -> {n:String | len n > 0} -> RefinedFilter<{\u -> true}> Person (String) @-}
 {-@ reflect filterPersonName @-}
-filterPersonName :: RefinedPersistFilter -> String -> RefinedFilter Person String
+filterPersonName :: RefinedPersistFilter -> String -> RefinedFilter Person (String)
 filterPersonName f v = RefinedFilter PersonName v f
-{-@ filterPersonStreet :: RefinedPersistFilter -> {v:String | len v > 0} -> RefinedFilter<{\u -> true}> Person (String) @-}
+
+{-@ filterPersonStreet :: RefinedPersistFilter -> {n:String | len n > 0} -> RefinedFilter<{\u -> true}> Person (String) @-}
 {-@ reflect filterPersonStreet @-}
-filterPersonStreet :: RefinedPersistFilter -> String -> RefinedFilter Person String
+filterPersonStreet :: RefinedPersistFilter -> String -> RefinedFilter Person (String)
 filterPersonStreet f v = RefinedFilter PersonStreet v f
-{-@ filterPersonNumber :: RefinedPersistFilter -> {v:Int | v > 0} -> RefinedFilter<{\u -> true}> Person (Int) @-}
+
+{-@ filterPersonNumber :: RefinedPersistFilter -> {v:Int | v > 0} -> RefinedFilter<{\u -> userEmail u == "test@gmail.com"}> Person (Int) @-}
 {-@ reflect filterPersonNumber @-}
-filterPersonNumber :: RefinedPersistFilter -> Int -> RefinedFilter Person Int
+filterPersonNumber :: RefinedPersistFilter -> Int -> RefinedFilter Person (Int)
 filterPersonNumber f v = RefinedFilter PersonNumber v f
+
 {-@ filterFriendsEmail :: RefinedPersistFilter -> String -> RefinedFilter<{\u -> true}> Friends (String) @-}
 {-@ reflect filterFriendsEmail @-}
-filterFriendsEmail :: RefinedPersistFilter -> String -> RefinedFilter Friends String
+filterFriendsEmail :: RefinedPersistFilter -> String -> RefinedFilter Friends (String)
 filterFriendsEmail f v = RefinedFilter FriendsEmail v f
+
 {-@ filterFriendsRequests :: RefinedPersistFilter -> [String] -> RefinedFilter<{\u -> true}> Friends ([String]) @-}
 {-@ reflect filterFriendsRequests @-}
-filterFriendsRequests :: RefinedPersistFilter -> [String] -> RefinedFilter Friends [String]
+filterFriendsRequests :: RefinedPersistFilter -> [String] -> RefinedFilter Friends ([String])
 filterFriendsRequests f v = RefinedFilter FriendsRequests v f
+
 {-@ filterFriendsFriends :: RefinedPersistFilter -> [String] -> RefinedFilter<{\u -> true}> Friends ([String]) @-}
 {-@ reflect filterFriendsFriends @-}
-filterFriendsFriends :: RefinedPersistFilter -> [String] -> RefinedFilter Friends [String]
+filterFriendsFriends :: RefinedPersistFilter -> [String] -> RefinedFilter Friends ([String])
 filterFriendsFriends f v = RefinedFilter FriendsFriends v f
+
 {-@ filterFriendsOutgoingRequests :: RefinedPersistFilter -> [String] -> RefinedFilter<{\u -> true}> Friends ([String]) @-}
 {-@ reflect filterFriendsOutgoingRequests @-}
-filterFriendsOutgoingRequests :: RefinedPersistFilter -> [String] -> RefinedFilter Friends [String]
+filterFriendsOutgoingRequests :: RefinedPersistFilter -> [String] -> RefinedFilter Friends ([String])
 filterFriendsOutgoingRequests f v = RefinedFilter FriendsOutgoingRequests v f
 
-{-@ assume selectUserTagged :: forall <p :: User -> Bool>. f:[RefinedFilter<p> User typ]
-                -> [SelectOpt User]
-                -> Control.Monad.Trans.Reader.ReaderT backend m (Tagged<p> [Entity {v:User | evalQsUser f v}]) @-}
-selectUserTagged :: (PersistEntityBackend User ~ BaseBackend backend,
-      PersistEntity User, Control.Monad.IO.Class.MonadIO m,
-      PersistQueryRead backend, PersistField typ) =>
-      [RefinedFilter User typ]
-      -> [SelectOpt User]
-      -> Control.Monad.Trans.Reader.ReaderT backend m (Tagged [Entity User])
-selectUserTagged fs ts = do
-  xs <- selectList (map toPersistentFilter fs) ts
-  return $ Tagged xs
-
-{-@ assume selectEmailTagged :: forall <p :: User -> Bool>. f:[RefinedFilter<p> Email typ]
-                -> [SelectOpt Email]
-                -> Control.Monad.Trans.Reader.ReaderT backend m (Tagged<p> [Entity {v:Email | evalQsEmail f v}]) @-}
-selectEmailTagged :: (PersistEntityBackend Email ~ BaseBackend backend,
-      PersistEntity Email, Control.Monad.IO.Class.MonadIO m,
-      PersistQueryRead backend, PersistField typ) =>
-      [RefinedFilter Email typ]
-      -> [SelectOpt Email]
-      -> Control.Monad.Trans.Reader.ReaderT backend m (Tagged [Entity Email])
-selectEmailTagged fs ts = do 
-  xs <- selectList (map toPersistentFilter fs) ts
-  return $ Tagged xs
-
-{-@ assume selectPersonTagged :: forall <p :: User -> Bool>. f:[RefinedFilter<p> Person typ]
-                -> [SelectOpt Person]
-                -> Control.Monad.Trans.Reader.ReaderT backend m (Tagged<p> [Entity {v:Person | evalQsPerson f v}]) @-}
-selectPersonTagged :: (PersistEntityBackend Person ~ BaseBackend backend,
-      PersistEntity Person, Control.Monad.IO.Class.MonadIO m,
-      PersistQueryRead backend, PersistField typ) =>
-      [RefinedFilter Person typ]
-      -> [SelectOpt Person]
-      -> Control.Monad.Trans.Reader.ReaderT backend m (Tagged [Entity Person])
-selectPersonTagged fs ts = do 
-  xs <- selectList (map toPersistentFilter fs) ts
-  return $ Tagged xs
-
-{-@ assume selectFriendsTagged :: forall <p :: User -> Bool>. f:[RefinedFilter<p> Friends typ]
+{-@ assume selectFriends :: forall <p:: User -> Bool>. f:[RefinedFilter<p> Friends typ]
                 -> [SelectOpt Friends]
                 -> Control.Monad.Trans.Reader.ReaderT backend m (Tagged<p> [Entity {v:Friends | evalQsFriends f v}]) @-}
-selectFriendsTagged :: (PersistEntityBackend Friends ~ BaseBackend backend,
+selectFriends :: (PersistEntityBackend Friends ~ BaseBackend backend,
       PersistEntity Friends, Control.Monad.IO.Class.MonadIO m,
       PersistQueryRead backend, PersistField typ) =>
       [RefinedFilter Friends typ]
       -> [SelectOpt Friends]
       -> Control.Monad.Trans.Reader.ReaderT backend m (Tagged [Entity Friends])
-selectFriendsTagged fs ts = do
-  xs <- selectList (map toPersistentFilter fs) ts
-  return (Tagged xs)
+selectFriends fs ts = selectList (map toPersistentFilter fs) ts >>= return . Tagged
+
+{-@ assume selectPerson :: forall <p:: User -> Bool>. f:[RefinedFilter<p> Person typ]
+                -> [SelectOpt Person]
+                -> Control.Monad.Trans.Reader.ReaderT backend m (Tagged<p> [Entity {v:Person | evalQsPerson f v}]) @-}
+selectPerson :: (PersistEntityBackend Person ~ BaseBackend backend,
+      PersistEntity Person, Control.Monad.IO.Class.MonadIO m,
+      PersistQueryRead backend, PersistField typ) =>
+      [RefinedFilter Person typ]
+      -> [SelectOpt Person]
+      -> Control.Monad.Trans.Reader.ReaderT backend m (Tagged [Entity Person])
+selectPerson fs ts = selectList (map toPersistentFilter fs) ts >>= return . Tagged
+
+{-@ assume selectEmail :: forall <p:: User -> Bool>. f:[RefinedFilter<p> Email typ]
+                -> [SelectOpt Email]
+                -> Control.Monad.Trans.Reader.ReaderT backend m (Tagged<p> [Entity {v:Email | evalQsEmail f v}]) @-}
+selectEmail :: (PersistEntityBackend Email ~ BaseBackend backend,
+      PersistEntity Email, Control.Monad.IO.Class.MonadIO m,
+      PersistQueryRead backend, PersistField typ) =>
+      [RefinedFilter Email typ]
+      -> [SelectOpt Email]
+      -> Control.Monad.Trans.Reader.ReaderT backend m (Tagged [Entity Email])
+selectEmail fs ts = selectList (map toPersistentFilter fs) ts >>= return . Tagged
+
+{-@ assume selectUser :: forall <p:: User -> Bool>. f:[RefinedFilter<p> User typ]
+                -> [SelectOpt User]
+                -> Control.Monad.Trans.Reader.ReaderT backend m (Tagged<p> [Entity {v:User | evalQsUser f v}]) @-}
+selectUser :: (PersistEntityBackend User ~ BaseBackend backend,
+      PersistEntity User, Control.Monad.IO.Class.MonadIO m,
+      PersistQueryRead backend, PersistField typ) =>
+      [RefinedFilter User typ]
+      -> [SelectOpt User]
+      -> Control.Monad.Trans.Reader.ReaderT backend m (Tagged [Entity User])
+selectUser fs ts = selectList (map toPersistentFilter fs) ts >>= return . Tagged
+
+{-@ safeShow :: forall <p :: User -> Bool>.
+                Tagged<p> a
+             -> User<p>
+             -> String
+@-}
+safeShow :: Show a => Tagged a -> User -> String
+safeShow (Tagged x) _ = show x
+
+testSafeShow () = do
+  taggedUsers <- selectPerson [filterPersonNumber EQUAL 3] []
+  return $ safeShow taggedUsers (User "test@gmail.com" Nothing Nothing False)
