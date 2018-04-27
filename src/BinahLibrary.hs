@@ -25,6 +25,32 @@ import           Data.Text hiding (map, filter)
 
 {-@ data Tagged a <p :: User -> Bool> = Tagged { content :: a } @-}
 data Tagged a = Tagged { content :: a }
+
+instance Functor Tagged where
+    fmap f (Tagged x) = Tagged (f x)
+
+instance Applicative Tagged where
+  pure  = Tagged
+  (Tagged f) <*> (Tagged x) = Tagged (f x)
+
+instance Monad Tagged where
+    return x = Tagged x
+    (Tagged x) >>= f = f x
+    (Tagged _) >>  t = t
+    fail          = error
+
+{-@ instance Monad Tagged where
+     >>= :: forall <p :: User -> Bool, f:: a -> b -> Bool>.
+            x:Tagged <p> a
+         -> (u:a -> Tagged <p> (b <f u>))
+         -> Tagged <p> (b<f (content x)>);
+     >>  :: x:Tagged a
+         -> Tagged b
+         -> Tagged b;
+     return :: forall <p :: User -> Bool>. a -> Tagged <p> a
+@-}
+
+
 {-@ data variance Tagged covariant contravariant @-}
 
 data RefinedPersistFilter = EQUAL | NE | LE | LTP | GE | GTP
@@ -149,7 +175,7 @@ evalQUserVerkey EQUAL filter given = given == filter
 evalQUserVerkey NE filter given = given /= filter
 
 {-@ reflect evalQUserVerified @-}
-evalQUserVerified :: RefinedPersistFilter -> Bool -> Bool -> Bool
+evalQUserVerified :: RefinedPersistFilter -> Int -> Int -> Bool
 evalQUserVerified EQUAL filter given = given == filter
 evalQUserVerified NE filter given = given /= filter
 
@@ -314,9 +340,9 @@ filterUserPassword f v = RefinedFilter UserPassword v f
 filterUserVerkey :: RefinedPersistFilter -> Maybe String -> RefinedFilter User (Maybe String)
 filterUserVerkey f v = RefinedFilter UserVerkey v f
 
-{-@ filterUserVerified :: RefinedPersistFilter -> Bool -> RefinedFilter<{\u -> true}> User (Bool) @-}
+{-@ filterUserVerified :: RefinedPersistFilter -> Int -> RefinedFilter<{\u -> true}> User (Int) @-}
 {-@ reflect filterUserVerified @-}
-filterUserVerified :: RefinedPersistFilter -> Bool -> RefinedFilter User (Bool)
+filterUserVerified :: RefinedPersistFilter -> Int -> RefinedFilter User (Int)
 filterUserVerified f v = RefinedFilter UserVerified v f
 
 {-@ filterEmailEmail :: RefinedPersistFilter -> String -> RefinedFilter<{\u -> true}> Email (String) @-}
@@ -339,7 +365,7 @@ filterEmailVerkey f v = RefinedFilter EmailVerkey v f
 filterPersonEmail :: RefinedPersistFilter -> String -> RefinedFilter Person (String)
 filterPersonEmail f v = RefinedFilter PersonEmail v f
 
-{-@ filterPersonName :: RefinedPersistFilter -> {n:String | len n > 0} -> RefinedFilter<{\u -> true}> Person (String) @-}
+{-@ filterPersonName :: RefinedPersistFilter -> {n:String | len n > 0} -> RefinedFilter<{\u -> True}> Person (String) @-}
 {-@ reflect filterPersonName @-}
 filterPersonName :: RefinedPersistFilter -> String -> RefinedFilter Person (String)
 filterPersonName f v = RefinedFilter PersonName v f
@@ -426,6 +452,21 @@ selectUser fs ts = selectList (map toPersistentFilter fs) ts >>= return . Tagged
 safeShow :: Show a => Tagged a -> User -> String
 safeShow (Tagged x) _ = show x
 
+{-@ safeUnwrap :: forall <p :: User -> Bool>.
+                Tagged<p> a
+             -> User<p>
+             -> a
+@-}
+safeUnwrap :: Show a => Tagged a -> User -> a
+safeUnwrap (Tagged x) _ = x
+
+
 testSafeShow () = do
   taggedUsers <- selectPerson [filterPersonNumber EQUAL 3] []
-  return $ safeShow taggedUsers (User "test@gmail.com" Nothing Nothing False)
+  return $ safeShow taggedUsers (User "test@gmail.com" Nothing Nothing 0)
+
+{-@ measure isVerified :: User -> Bool @-}
+
+{-@ assume isUserVerified :: u:User -> Control.Monad.Trans.Reader.ReaderT backend m {b:Bool | b <=> isVerified u} @-}
+isUserVerified :: User -> Control.Monad.Trans.Reader.ReaderT backend m Bool
+isUserVerified u = undefined

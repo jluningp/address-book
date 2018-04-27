@@ -2,7 +2,7 @@ User
    ~email String
    ~password String Maybe
    ~verkey String Maybe
-   ~verified Bool
+   ~verified Int
    UniqueUser email
    deriving Typeable
    deriving Show

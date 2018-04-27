@@ -24,7 +24,7 @@ data User = User
 	{ userEmail :: [Char]
 	, userPassword :: Maybe [Char]
 	, userVerkey :: Maybe [Char]
-	, userVerified :: Bool
+	, userVerified :: Int
 	}
 @-}
 

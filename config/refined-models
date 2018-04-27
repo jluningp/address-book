@@ -11,15 +11,17 @@ Email
    verkey String Maybe
    UniqueEmail email
 Person
-   email String
+   email String {\u => email u == personEmail}
    UniquePerson email
-   name {n : String | len n > 0}
-   street {n : String | len n > 0}
-   number {v:Int | v > 0}
+   name {n : String | len n > 0} {\u => isVerified u}
+   street {n : String | len n > 0} {\u => inFriendsList u personEmail}
+   number {v:Int | v > 0} {\u => inFriendsList u personEmail}
    deriving Show
 Friends
    email String
    UniqueFriend email
    requests [String]
-   friends [String]
-   outgoingRequests [String]
+   friends [String] {\u => inFriendsList u friendsEmail}
+   outgoingRequests [String] {Should be able to see that
+                              you're in the outgoing requests,
+			      but not any of the other ones}

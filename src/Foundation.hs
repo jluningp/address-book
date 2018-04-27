@@ -179,7 +179,7 @@ instance YesodAuth App where
 
       -- Need to find the UserId for the given email address.
       getAuthId creds = runDB $ do
-        x <- insertBy $ User (unpack (credsIdent creds)) Nothing Nothing False
+        x <- insertBy $ User (unpack (credsIdent creds)) Nothing Nothing 0
         return $ Just $
           case x of
             Left (Entity userid _) -> userid -- newly added user
@@ -194,7 +194,7 @@ instance YesodAuthEmail App where
       afterPasswordRoute _ = HomeR
 
       addUnverified email verkey = do
-        uid <- runDB $ insert $ User (unpack email) Nothing (Just (unpack verkey)) False
+        uid <- runDB $ insert $ User (unpack email) Nothing (Just (unpack verkey)) 0
         return uid
         --redirect AuthR $ verifyR uid verkey
 
@@ -212,7 +212,7 @@ instance YesodAuthEmail App where
           Nothing -> return Nothing
           Just u -> do
             insert $ Person (userEmail u) "[No Name]" "[No Street]" 0
-            update uid [UserVerified =. True]
+            update uid [UserVerified =. 1]
             return $ Just uid
       getPassword = runDB . fmap (fmap pack . join . fmap userPassword) . get
       setPassword uid pass = runDB $ update uid [UserPassword =. Just (unpack pass)]

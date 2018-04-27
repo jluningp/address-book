@@ -14,30 +14,46 @@ module Handler.Browse where
 
 import Import
 import BinahLibrary hiding (filter)
+import Data.Traversable
+import qualified Data.Maybe as Maybe
 
-processPeople :: [(PersonId, Person)] -> Handler [(Entity Person, Bool, Bool)]
+processPeople :: Tagged [(PersonId, Person)] -> Handler (Tagged [(Entity Person, Bool, Bool)])
 processPeople peopleList = do
   authPerson <- Import.getAuthPerson
-  people <- case authPerson of
-              Nothing -> return $ map (\(id, x) -> (Entity id x, False, False)) peopleList
-              Just (pid, _) -> do
-                friendList <- Import.getFriendList pid
-                requestList <- Import.getOutgoingRequestList pid
-                mapM (\(id, Person email name street number) -> do
-                        me <- Import.isMe id
-                        return $ let e = pack email in
-                                   (Entity id (Person email name street number),
-                                    any (\y -> y == e) friendList || me,
-                                    any (\y -> y == e) requestList || me)) peopleList
-  return people
+  friends <- case authPerson of
+                Nothing -> return Nothing
+                Just (pid, _) -> do
+                  friendList <- Import.getFriendList pid
+                  requestList <- Import.getOutgoingRequestList pid
+                  return $ Just (friendList, requestList, pid)
+  people <- case friends of
+              Nothing -> return $ fmap (map (\(id, x) -> (Entity id x, False, False))) peopleList
+              Just (friendList, requestList, me) ->
+                return $ fmap (map (\(id, Person email name street number) ->
+                                      let e = pack email
+                                          isMe = me == id
+                                      in
+                                        (Entity id (Person email name street number),
+                                         any (\y -> y == e) friendList || isMe,
+                                         any (\y -> y == e) requestList || isMe))) peopleList
+  return $ people
 
 getBrowseR :: Handler Html
 getBrowseR = do
-  peopleList <- runDB $ selectList [] [Asc PersonName]
-  peopleTupleList <- return $ map (\(Entity id p) -> (id, p)) peopleList
-  people <- processPeople peopleTupleList
+  peopleList <- runDB $ (selectPerson ([] :: [RefinedFilter Person String]) [Asc PersonName])
+  people <- let peopleTupleList = fmap (map (\(Entity id p) -> (id, p))) peopleList
+            in processPeople peopleTupleList
+  peopleDetails <- return $ fmap (map (\(Entity id (Person _ name _ _), a, b) -> (id, name, a, b))) people
+  user <- getAuthUser
   defaultLayout $(widgetFile "browse")
 
+getAuthUser :: Handler User
+getAuthUser = do
+  id <- maybeAuthId
+  user <- runDB $ do
+    usr <- get (Maybe.fromJust id)
+    return $ Maybe.fromJust usr
+  return user
 
 getAuthPerson :: Handler (Maybe (Key Person, Person))
 getAuthPerson = do
