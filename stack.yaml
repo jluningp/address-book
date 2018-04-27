@@ -17,11 +17,6 @@
 #  location: "./custom-snapshot.yaml"
 resolver: lts-10.0
 
-ghc-options:
-  "yaml": -opta-Wa,-mrelax-relocations=no
-  "persistent-sqlite": -opta-Wa,-mrelax-relocations=no
-
-
 # User packages to be built.
 # Various formats can be used as shown in the example below.
 #
