@@ -5,7 +5,10 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ViewPatterns #-}
 
+{-@ LIQUID "--no-adt" 	                           @-}
 {-@ LIQUID "--exact-data-con"                      @-}
+{-@ LIQUID "--higherorder"                         @-}
+{-@ LIQUID "--no-termination"                      @-}
 
 module Queries where
 
@@ -76,34 +79,6 @@ getRequestList = getList friendsRequests
 {-@ getOutgoingRequestList :: PersonId -> Handler (Tagged<{\u -> isVerified u}> [Text]) @-}
 getOutgoingRequestList :: PersonId -> Handler (Tagged [Text])
 getOutgoingRequestList = getList friendsOutgoingRequests
-
-{-@ isInList :: (PersonId -> Handler (Tagged [Text])) -> PersonId -> Handler (Tagged<{\u -> isVerified u}> (Handler (Tagged<{\u -> isVerified u}> Bool))) @-}
-isInList :: (PersonId -> Handler (Tagged [Text])) -> PersonId -> Handler (Tagged (Handler (Tagged Bool)))
-isInList getter p2 = do --Tagged
-  muid <- maybeAuthId
-  pidTagged <- getAuthPerson
-  person2Opt <- runDB $ get p2
-  return $ do -- Tagged
-    pid <- pidTagged
-    case pid of
-      Nothing -> return $ ((return $ return False) :: Handler (Tagged Bool))
-      Just (p1, Person email1 _ _ _) -> return $ do --Handler
-        friendListTagged <- getter p1
-        return $ do --Tagged
-          friendList <- friendListTagged
-          return $ case person2Opt of
-                     Nothing -> False
-                     Just (Person email2 _ _ _) -> let e2 = pack email2
-                                                   in any (\x -> e2 == x) friendList
-
-
-{-@ isFriend :: PersonId -> Handler (Tagged<{\u -> isVerified u}> (Handler (Tagged<{\u -> isVerified u}> Bool))) @-}
-isFriend :: PersonId -> Handler (Tagged (Handler (Tagged Bool)))
-isFriend = isInList getFriendList
-
-{-@ isFriendRequest :: PersonId -> Handler (Tagged<{\u -> isVerified u}> (Handler (Tagged<{\u -> isVerified u}> Bool))) @-}
-isFriendRequest :: PersonId -> Handler (Tagged (Handler (Tagged Bool)))
-isFriendRequest = isInList getRequestList
 
 {-@ isMe :: PersonId -> Handler (Tagged<{\u -> isVerified u}> Bool) @-}
 isMe :: PersonId -> Handler (Tagged Bool)

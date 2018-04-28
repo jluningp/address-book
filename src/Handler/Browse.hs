@@ -4,11 +4,10 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies #-}
 
-{-@ LIQUID "--no-adt" 	                           @-}
+--{-@ LIQUID "--no-adt" 	                           @-}
 {-@ LIQUID "--exact-data-con"                      @-}
-{-@ LIQUID "--higherorder"                         @-}
+--{-@ LIQUID "--higherorder"                         @-}
 {-@ LIQUID "--no-termination"                      @-}
-{-@ LIQUID "--ple" @-}
 
 module Handler.Browse where
 

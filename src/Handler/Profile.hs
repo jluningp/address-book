@@ -43,7 +43,9 @@ getProfileR personId = do
   Person email name street number <- runDB $ get404 personId --safeUnwrap taggedPerson user
   (widget, enctype) <- generateFormPost $ personForm (Person email name street number)
   canEditTagged <- Queries.isMe personId
-  canEdit <- return $ safeUnwrap canEditTagged user
+  canEdit <- return $ if isUserVerified user
+                      then safeUnwrap canEditTagged user
+                      else False
   defaultLayout $ do
     $(widgetFile "profile")
 
