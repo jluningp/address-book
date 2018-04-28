@@ -17,11 +17,16 @@
 
 module BinahLibrary where
 import           Prelude hiding (filter)
+import Import hiding (getAuthUser, getAuthPerson, getList, getFriendList, getRequestList,
+                      getOutgoingRequestList, isInList, isFriend, isFriendRequest, isMe,
+                      pack, any, map, (.), filter)
 import           Control.Monad.IO.Class  (liftIO, MonadIO)
 import           Control.Monad.Trans.Reader
 import           Database.Persist
 import           Model
 import           Data.Text hiding (map, filter)
+import           Data.Maybe (fromJust)
+import qualified Data.List
 
 {-@ data Tagged a <p :: User -> Bool> = Tagged { content :: a } @-}
 data Tagged a = Tagged { content :: a }
@@ -53,6 +58,7 @@ instance Monad Tagged where
 
 {-@ data variance Tagged covariant contravariant @-}
 
+{-@ data RefinedPersistFilter = EQUAL | NE | LE | LTP | GE | GTP @-}
 data RefinedPersistFilter = EQUAL | NE | LE | LTP | GE | GTP
 
 {-@ data RefinedFilter record typ <p :: User -> Bool> = RefinedFilter
@@ -360,7 +366,7 @@ filterEmailUserId f v = RefinedFilter EmailUserId v f
 filterEmailVerkey :: RefinedPersistFilter -> Maybe String -> RefinedFilter Email (Maybe String)
 filterEmailVerkey f v = RefinedFilter EmailVerkey v f
 
-{-@ filterPersonEmail :: RefinedPersistFilter -> String -> RefinedFilter<{\u -> true}> Person (String) @-}
+{-@ filterPersonEmail :: RefinedPersistFilter -> String -> RefinedFilter<{\u -> isVerified u}> Person (String) @-}
 {-@ reflect filterPersonEmail @-}
 filterPersonEmail :: RefinedPersistFilter -> String -> RefinedFilter Person (String)
 filterPersonEmail f v = RefinedFilter PersonEmail v f
@@ -370,12 +376,17 @@ filterPersonEmail f v = RefinedFilter PersonEmail v f
 filterPersonName :: RefinedPersistFilter -> String -> RefinedFilter Person (String)
 filterPersonName f v = RefinedFilter PersonName v f
 
+{-@ filterPersonId :: RefinedPersistFilter -> PersonId -> RefinedFilter<{\u -> true}> Person (PersonId) @-}
+{-@ reflect filterPersonName @-}
+filterPersonId :: RefinedPersistFilter -> PersonId -> RefinedFilter Person (PersonId)
+filterPersonId f v = RefinedFilter PersonId v f
+
 {-@ filterPersonStreet :: RefinedPersistFilter -> {n:String | len n > 0} -> RefinedFilter<{\u -> true}> Person (String) @-}
 {-@ reflect filterPersonStreet @-}
 filterPersonStreet :: RefinedPersistFilter -> String -> RefinedFilter Person (String)
 filterPersonStreet f v = RefinedFilter PersonStreet v f
 
-{-@ filterPersonNumber :: RefinedPersistFilter -> {v:Int | v > 0} -> RefinedFilter<{\u -> userEmail u == "test@gmail.com"}> Person (Int) @-}
+{-@ filterPersonNumber :: RefinedPersistFilter -> {v:Int | v > 0} -> RefinedFilter<{\u -> true}> Person (Int) @-}
 {-@ reflect filterPersonNumber @-}
 filterPersonNumber :: RefinedPersistFilter -> Int -> RefinedFilter Person (Int)
 filterPersonNumber f v = RefinedFilter PersonNumber v f
@@ -432,7 +443,7 @@ selectEmail :: (PersistEntityBackend Email ~ BaseBackend backend,
       -> [SelectOpt Email]
       -> Control.Monad.Trans.Reader.ReaderT backend m (Tagged [Entity Email])
 selectEmail fs ts = selectList (map toPersistentFilter fs) ts >>= return . Tagged
-
+--evalQsUser f v
 {-@ assume selectUser :: forall <p:: User -> Bool>. f:[RefinedFilter<p> User typ]
                 -> [SelectOpt User]
                 -> Control.Monad.Trans.Reader.ReaderT backend m (Tagged<p> [Entity {v:User | evalQsUser f v}]) @-}
@@ -473,3 +484,124 @@ testSafeShow () = do
 isUserVerified :: User -> Bool
 isUserVerified (User _ _ _ 1) = True
 isUserVerified (User _ _ _ 0) = False
+
+
+---- LIBRARY QUERY FUNCTIONS -----
+getAuthUser :: Handler (Maybe User)
+getAuthUser = do
+  myId <- maybeAuthId
+  authUser <- case myId of
+                Nothing -> return Nothing
+                Just id -> runDB $ do
+                  userOpt <- get id
+                  return $ userOpt
+  return authUser
+
+{-@ getSomething :: Handler (Tagged<{\u -> isVerified u}> [Entity Person]) @-}
+getSomething :: Handler (Tagged [Entity Person])
+getSomething = do
+  people <- runDB $ selectPerson [filterPersonEmail EQUAL "FOO"] []
+  return people
+
+-- Ignore the code below: if it isn't there, the project won't build, but we needed
+-- a simple example so I made it undefined.
+
+{-@ getAuthPerson :: Handler (Tagged<{\u -> isVerified u}> (Maybe (Key Person, Person))) @-}
+getAuthPerson :: Handler (Tagged (Maybe (Key Person, Person)))
+getAuthPerson = do
+  myId <- maybeAuthId
+  authPerson <- case myId of
+                  Nothing -> return $ return Nothing
+                  Just id -> runDB $ do
+                    userOpt <- get id
+                    user <- return $ fromJust userOpt
+                    entityPersonTagged <- selectPerson [filterPersonEmail EQUAL (userEmail user)] []
+                    return $ do
+                      entityPerson <- entityPersonTagged
+                      return $ case entityPerson of
+                                 [] -> Nothing
+                                 (Entity uid person):_ -> Just (uid, person)
+  return authPerson
+
+
+{-@ getList :: (Friends -> [String]) -> PersonId -> Handler (Tagged<{\u -> isVerified u}> [Text]) @-}
+getList :: (Friends -> [String]) -> PersonId -> Handler (Tagged [Text])
+getList getter personId = do
+  personOpt <- runDB $ get personId
+  list <- case personOpt of
+            Nothing -> return $ return []
+            Just (Person email _ _ _) ->
+              runDB $ do
+              friendsOpt <- selectFriends [filterFriendsEmail EQUAL email] []
+              return $ fmap (\friends -> case friends of
+                                           [] -> []
+                                           (Entity uid friend):_ ->
+                                             map pack (getter friend)) friendsOpt
+  return list
+
+
+{-@ getFriendList :: PersonId -> Handler (Tagged<{\u -> isVerified u}> [Text]) @-}
+getFriendList :: PersonId -> Handler (Tagged [Text])
+getFriendList = getList friendsFriends
+{-@ getRequestList :: PersonId -> Handler (Tagged<{\u -> isVerified u}> [Text]) @-}
+getRequestList :: PersonId -> Handler (Tagged [Text])
+getRequestList = getList friendsRequests
+{-@ getOutgoingRequestList :: PersonId -> Handler (Tagged<{\u -> isVerified u}> [Text]) @-}
+getOutgoingRequestList :: PersonId -> Handler (Tagged [Text])
+getOutgoingRequestList = getList friendsOutgoingRequests
+
+{-@ isInList :: PersonId -> Handler (Tagged<{\u -> isVerified u}> (Handler (Tagged<{\u -> isVerified u}> Bool))) @-}
+isInList :: PersonId -> Handler (Tagged (Handler (Tagged Bool)))
+isInList p2 = do --Tagged
+  muid <- maybeAuthId
+  pidTagged <- getAuthPerson
+  person2Opt <- runDB $ get p2
+  return $ do -- Tagged
+    pid <- pidTagged
+    case pid of
+      Nothing -> return $ ((return $ return False) :: Handler (Tagged Bool))
+      Just (p1, Person email1 _ _ _) -> return $ do --Handler
+        friendListTagged <- getFriendList p1
+        return $ do --Tagged
+          friendList <- friendListTagged
+          return $ case person2Opt of
+                     Nothing -> False
+                     Just (Person email2 _ _ _) -> let e2 = pack email2
+                                                   in Data.List.any (\x -> e2 == x) friendList
+
+
+{-@ isFriendRequest :: PersonId -> Handler (Tagged<{\u -> isVerified u}> (Handler (Tagged<{\u -> isVerified u}> Bool))) @-}
+isFriendRequest :: PersonId -> Handler (Tagged (Handler (Tagged Bool)))
+isFriendRequest p2 = do --Tagged
+  muid <- maybeAuthId
+  pidTagged <- getAuthPerson
+  person2Opt <- runDB $ get p2
+  return $ do -- Tagged
+    pid <- pidTagged
+    case pid of
+      Nothing -> return $ ((return $ return False) :: Handler (Tagged Bool))
+      Just (p1, Person email1 _ _ _) -> return $ do --Handler
+        friendListTagged <- getRequestList p1
+        return $ do --Tagged
+          friendList <- friendListTagged
+          return $ case person2Opt of
+                     Nothing -> False
+                     Just (Person email2 _ _ _) -> let e2 = pack email2
+                                                   in Data.List.any (\x -> e2 == x) friendList
+
+
+{-@ isMe :: PersonId -> Handler (Tagged<{\u -> isVerified u}> Bool) @-}
+isMe :: PersonId -> Handler (Tagged Bool)
+isMe personId = do
+    muid <- maybeAuthId
+    pidTagged <- getAuthPerson
+    return $ do
+      pid <- pidTagged
+      case muid of
+        Nothing -> return False
+        Just id -> case pid of
+                     Nothing -> return False
+                     Just (pid, _) -> do
+                       if pid == personId
+                         then return True
+                         else return False

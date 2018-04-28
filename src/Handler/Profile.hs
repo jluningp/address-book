@@ -28,11 +28,20 @@ personForm (Person email name street number)  = renderDivs $ PersonDetails
 
 getProfileR :: PersonId -> Handler Html
 getProfileR personId = do
-  Person email name street number <- runDB $ get404 personId
-  (widget, enctype) <- generateFormPost $ personForm (Person email name street number)
-  canEditTagged <- Import.isMe personId
+{-  taggedPerson <- runDB $ do
+    taggedPersonList <- selectPerson [filterPersonId EQUAL personId] []
+    return $ do
+      personList <- taggedPersonList
+      return $ case personList of
+                 [] -> error "No id found"
+                 p:_ -> p
+-}
+
   authUsr <- maybeAuthId
   user <- runDB $ get404 (Maybe.fromJust authUsr)
+  Person email name street number <- runDB $ get404 personId --safeUnwrap taggedPerson user
+  (widget, enctype) <- generateFormPost $ personForm (Person email name street number)
+  canEditTagged <- BinahLibrary.isMe personId
   canEdit <- return $ safeUnwrap canEditTagged user
   defaultLayout $ do
     $(widgetFile "profile")
