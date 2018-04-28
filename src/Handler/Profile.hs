@@ -14,6 +14,7 @@ module Handler.Profile where
 
 import Yesod.Form.Jquery
 import Import
+import Queries
 import BinahLibrary hiding (filter)
 import qualified Data.Maybe as Maybe
 
@@ -41,7 +42,7 @@ getProfileR personId = do
   user <- runDB $ get404 (Maybe.fromJust authUsr)
   Person email name street number <- runDB $ get404 personId --safeUnwrap taggedPerson user
   (widget, enctype) <- generateFormPost $ personForm (Person email name street number)
-  canEditTagged <- BinahLibrary.isMe personId
+  canEditTagged <- Queries.isMe personId
   canEdit <- return $ safeUnwrap canEditTagged user
   defaultLayout $ do
     $(widgetFile "profile")

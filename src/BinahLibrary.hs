@@ -487,6 +487,7 @@ isUserVerified (User _ _ _ 0) = False
 
 
 ---- LIBRARY QUERY FUNCTIONS -----
+{-
 getAuthUser :: Handler (Maybe User)
 getAuthUser = do
   myId <- maybeAuthId
@@ -605,3 +606,4 @@ isMe personId = do
                        if pid == personId
                          then return True
                          else return False
+-}

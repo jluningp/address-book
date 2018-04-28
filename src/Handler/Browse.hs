@@ -20,14 +20,14 @@ import qualified Data.Maybe as Maybe
 
 processPeople :: Tagged [(PersonId, Person)] -> Handler (Tagged (Handler (Tagged [(Entity Person, Bool, Bool)])))
 processPeople peopleList = do
-  authPersonTagged <- BinahLibrary.getAuthPerson
+  authPersonTagged <- Queries.getAuthPerson
   friends <- return $ do --Tagged Handler (Maybe Tagged)
     authPerson <- authPersonTagged
     case authPerson of
       Nothing -> return $ return Nothing
       Just (pid, _) -> return $ do
-        friendList <- BinahLibrary.getFriendList pid
-        requestList <- BinahLibrary.getOutgoingRequestList pid
+        friendList <- Queries.getFriendList pid
+        requestList <- Queries.getOutgoingRequestList pid
         return $ Just (friendList, requestList)
   people <- return $ do
     hmt <- friends
@@ -51,7 +51,7 @@ processPeople peopleList = do
 getBrowseR :: Handler Html
 getBrowseR = do
   user <- Handler.Browse.getAuthUser
-  personT <- BinahLibrary.getAuthPerson
+  personT <- Queries.getAuthPerson
   peopleDetailsTH <- return $ do
     person <- personT
     (_, Person _ name _ _) <- return $ Maybe.fromJust person
@@ -79,7 +79,7 @@ getAddFriendR :: PersonId -> Handler Html
 getAddFriendR personId = do
   Person email name street number <- runDB $ get404 personId
   user <- Handler.Browse.getAuthUser
-  authPersonT <- BinahLibrary.getAuthPerson
+  authPersonT <- Queries.getAuthPerson
   listsTHMT <- return $ do
     authPerson <- authPersonT
     case authPerson of

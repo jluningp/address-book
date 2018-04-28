@@ -10,6 +10,7 @@ module Handler.Home where
 
 import Import
 import BinahLibrary
+import Queries
 import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3)
 import Text.Julius (RawJS (..))
 import qualified Data.Maybe as Maybe
@@ -68,7 +69,7 @@ getHomeR :: Handler Html
 getHomeR = do
     myId <- maybeAuthId
     maybePersonTagged <- Handler.Home.getAuthPerson
-    maybeUser <- getAuthUser
+    maybeUser <- Queries.getAuthUser
     loggedIn <- return $ case maybeUser of
                            Nothing -> False
                            Just user -> if isUserVerified user then

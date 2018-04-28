@@ -8,7 +8,7 @@
 {-@ LIQUID "--exact-data-con"                      @-}
 
 module Queries where
-{-
+
 import Import hiding (getAuthUser, getAuthPerson, getList, getFriendList, getRequestList,
                       getOutgoingRequestList, isInList, isFriend, isFriendRequest, isMe)
 import Yesod.Default.Util   (addStaticContentExternal)
@@ -123,4 +123,3 @@ isMe personId = do
                        if pid == personId
                          then return True
                          else return False
--}
