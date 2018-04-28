@@ -365,7 +365,7 @@ filterEmailVerkey f v = RefinedFilter EmailVerkey v f
 filterPersonEmail :: RefinedPersistFilter -> String -> RefinedFilter Person (String)
 filterPersonEmail f v = RefinedFilter PersonEmail v f
 
-{-@ filterPersonName :: RefinedPersistFilter -> {n:String | len n > 0} -> RefinedFilter<{\u -> True}> Person (String) @-}
+{-@ filterPersonName :: RefinedPersistFilter -> {n:String | len n > 0} -> RefinedFilter<{\u -> isVerified u}> Person (String) @-}
 {-@ reflect filterPersonName @-}
 filterPersonName :: RefinedPersistFilter -> String -> RefinedFilter Person (String)
 filterPersonName f v = RefinedFilter PersonName v f
@@ -457,16 +457,19 @@ safeShow (Tagged x) _ = show x
              -> User<p>
              -> a
 @-}
-safeUnwrap :: Show a => Tagged a -> User -> a
+safeUnwrap :: Tagged a -> User -> a
 safeUnwrap (Tagged x) _ = x
 
+--testSelect () = selectPerson [filterPersonNumber EQUAL 3] []
 
 testSafeShow () = do
   taggedUsers <- selectPerson [filterPersonNumber EQUAL 3] []
   return $ safeShow taggedUsers (User "test@gmail.com" Nothing Nothing 0)
+  --return $ safeUnwrap taggedUsers (User "foo" Nothing Nothing 0)
 
 {-@ measure isVerified :: User -> Bool @-}
 
-{-@ assume isUserVerified :: u:User -> Control.Monad.Trans.Reader.ReaderT backend m {b:Bool | b <=> isVerified u} @-}
-isUserVerified :: User -> Control.Monad.Trans.Reader.ReaderT backend m Bool
-isUserVerified u = undefined
+{-@ assume isUserVerified :: u:User -> {b:Bool | b <=> isVerified u} @-}
+isUserVerified :: User -> Bool
+isUserVerified (User _ _ _ 1) = True
+isUserVerified (User _ _ _ 0) = False

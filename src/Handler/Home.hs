@@ -6,6 +6,7 @@
 module Handler.Home where
 
 import Import
+import BinahLibrary
 import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3)
 import Text.Julius (RawJS (..))
 
@@ -22,28 +23,6 @@ data FileForm = FileForm
 -- The majority of the code you will write in Yesod lives in these handler
 -- functions. You can spread them across multiple files if you are so
 -- inclined, or create a single monolithic file.
-
-
-
-getAuthPerson :: Handler (Maybe (Key Person, Person))
-getAuthPerson = do
-  myId <- maybeAuthId
-  route <- case myId of
-             Nothing -> return $ Nothing
-             Just id -> runDB $ do
-               user <- get id
-               route <-
-                  case user of
-                    Nothing -> return $ Nothing
-                    Just u -> do
-                      x <- getBy $ UniquePerson (userEmail u)
-                      route <- case x of
-                                 Nothing -> return $ Nothing
-                                 Just (Entity uid person) -> return $ Just (uid, person)
-                      return route
-               return route
-  return route
-
 
 getPersonDetails :: String -> Handler (Maybe (PersonId, Person))
 getPersonDetails email = do
@@ -71,10 +50,13 @@ getConfirmLinkR link = do
 getHomeR :: Handler Html
 getHomeR = do
     myId <- maybeAuthId
-    maybePerson <- Import.getAuthPerson
-    loggedIn <- case maybePerson of
-                  Nothing -> return False
-                  Just _ -> return True
+    maybePerson <- getAuthPerson
+    maybeUser <- getAuthUser
+    loggedIn <- return $ case maybeUser of
+                           Nothing -> False
+                           Just user -> case safeUnwrap maybePerson user of
+                                          Nothing -> False
+                                          Just _ -> True
     link <- case myId of
               Nothing -> return $ AuthR LoginR
               Just id -> runDB $ do
@@ -89,14 +71,13 @@ getHomeR = do
                                         Just (Entity uid _) -> return $ ProfileR uid
                              return route
                 return route
-    friendEmailList <- case maybePerson of
-                         Just (pid, _) -> Import.getFriendList pid
-                         Nothing -> return []
-
-    requestEmailList <- case maybePerson of
-                          Just (pid, _) -> Import.getRequestList pid
-                          Nothing -> return []
-    friendPersonList <- mapM getPersonDetails $ map unpack friendEmailList
+    friendEmailList <- return ([] :: [String]) --case maybePerson of
+                       --  Just (pid, _) -> Import.getFriendList pid
+                       --  Nothing -> return []
+    requestEmailList <- return ([] :: [String]) --case maybePerson of
+                          --Just (pid, _) -> Import.getRequestList pid
+                          --Nothing -> return []
+    friendPersonList <-  mapM getPersonDetails $ map unpack (friendEmailList :: [String])
     requestMaybePersonList <- mapM getPersonDetails $ map unpack requestEmailList
     requestPersonList <- return $ mapMaybe (\x -> x) requestMaybePersonList
     friendList <- return $ map getFriendPrintout friendPersonList
@@ -105,19 +86,3 @@ getHomeR = do
         aDomId <- newIdent
         setTitle "Welcome To Yesod!"
         $(widgetFile "homepage")
-
-sampleForm :: Form FileForm
-sampleForm = renderBootstrap3 BootstrapBasicForm $ FileForm
-    <$> fileAFormReq "Choose a file"
-    <*> areq textField textSettings Nothing
-    -- Add attributes like the placeholder and CSS classes.
-    where textSettings = FieldSettings
-            { fsLabel = "What's on the file?"
-            , fsTooltip = Nothing
-            , fsId = Nothing
-            , fsName = Nothing
-            , fsAttrs =
-                [ ("class", "form-control")
-                , ("placeholder", "File description")
-                ]
-            }

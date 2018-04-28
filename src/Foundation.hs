@@ -24,6 +24,8 @@ import qualified Data.CaseInsensitive as CI
 import qualified Data.Text.Encoding as TE
 import qualified Data.Text as T
 import qualified Yesod.Auth.Message as Msg
+import qualified Data.Maybe as Maybe
+import BinahLibrary
 
 -- | The foundation datatype for your application. This can be a good place to
 -- keep settings and values requiring initialization before your application
@@ -120,11 +122,39 @@ instance Yesod App where
     isAuthorized RobotsR _ = return Authorized
     isAuthorized (StaticR _) _ = return Authorized
     isAuthorized BrowseR _ = return Authorized
-    isAuthorized (ProfileR personId) _ = authorizedFriend personId--Change isAuthenticated when you get authentication working
-    isAuthorized (UpdatePersonR personId) _ = isAuthenticated personId
+
+    --Handler (Tagged (Handler (Tagged AuthResult)))
+    isAuthorized (ProfileR personId) _ = do
+      userOpt <- getAuthUser
+      authTaggedHandlerTagged <- authorizedFriend personId
+      authTagged <- case userOpt of
+                      Nothing -> return $ return $ Unauthorized ""
+                      Just user -> safeUnwrap authTaggedHandlerTagged user
+      return $ case userOpt of
+                 Nothing -> Unauthorized ""
+                 Just user -> safeUnwrap authTagged user
+
+
+    isAuthorized (UpdatePersonR personId) _ = do
+      userOpt <- getAuthUser
+      authTagged <- isMe personId
+      return $ case userOpt of
+                 Nothing -> Unauthorized ""
+                 Just user -> if safeUnwrap authTagged user
+                              then Authorized
+                              else Unauthorized ""
+
     isAuthorized (AddFriendR personId) _ = return Authorized
     isAuthorized (ConfirmLinkR personId) _ = return Authorized
-    isAuthorized (ConfirmFriendR personId) _ = authorizedFriendRequest personId
+    isAuthorized (ConfirmFriendR personId) _ = do
+      userOpt <- getAuthUser
+      authTaggedHandlerTagged <- authorizedFriendRequest personId
+      authTagged <- case userOpt of
+                      Nothing -> return $ return $ Unauthorized ""
+                      Just user -> safeUnwrap authTaggedHandlerTagged user
+      return $ case userOpt of
+                 Nothing -> Unauthorized ""
+                 Just user -> safeUnwrap authTagged user
 
     -- This function creates static content files in the static folder
     -- and names them based on a hash of their content. This allows
@@ -229,97 +259,83 @@ instance YesodAuthEmail App where
                 }
       getEmail = runDB . fmap (fmap pack . fmap userEmail) . get
 
-getAuthPerson :: Handler (Maybe (Key Person, Person))
+
+getAuthUser :: Handler (Maybe User)
+getAuthUser = do
+  myId <- maybeAuthId
+  authUser <- case myId of
+                Nothing -> return Nothing
+                Just id -> runDB $ do
+                  userOpt <- get id
+                  return $ userOpt
+  return authUser
+
+getAuthPerson :: Handler (Tagged (Maybe (Key Person, Person)))
 getAuthPerson = do
-    myId <- maybeAuthId
-    authPerson <- case myId of
-                   Nothing -> return $ Nothing
-                   Just id -> runDB $ do
-                     user <- get id
-                     authPerson <-
-                       case user of
-                         Nothing -> return $ Nothing
-                         Just u -> do
-                           x <- getBy $ UniquePerson (userEmail u)
-                           authPerson <- case x of
-                                           Nothing -> return $ Nothing
-                                           Just (Entity uid person) -> return $ Just (uid, person)
-                           return authPerson
-                     return authPerson
-    return authPerson
+  myId <- maybeAuthId
+  authPerson <- case myId of
+                  Nothing -> return $ return Nothing
+                  Just id -> runDB $ do
+                    userOpt <- get id
+                    user <- return $ Maybe.fromJust userOpt
+                    entityPersonTagged <- selectPerson [filterPersonEmail EQUAL (userEmail user)] []
+                    return $ do
+                      entityPerson <- entityPersonTagged
+                      return $ case entityPerson of
+                                 [] -> Nothing
+                                 (Entity uid person):_ -> Just (uid, person)
+  return authPerson
 
 
-getFriendList :: PersonId -> Handler [Text]
-getFriendList personId = do
+getList :: (Friends -> [String]) -> PersonId -> Handler (Tagged [Text])
+getList getter personId = do
   personOpt <- runDB $ get personId
-  case personOpt of
-    Nothing -> return []
-    Just (Person email _ _ _) ->
-      runDB $ do
-        friendsOpt <- getBy $ UniqueFriend email
-        case friendsOpt of
-          Nothing -> return []
-          Just (Entity uid (Friends _ _ friendList _)) -> return $ map pack friendList
-
-getRequestList :: PersonId -> Handler [Text]
-getRequestList personId = do
-  personOpt <- runDB $ get personId
-  case personOpt of
-    Nothing -> return []
-    Just (Person email _ _ _) ->
-      runDB $ do
-        friendsOpt <- getBy $ UniqueFriend email
-        case friendsOpt of
-          Nothing -> return []
-          Just (Entity uid (Friends _ requestList _ _)) -> return $ map pack requestList
-
-getOutgoingRequestList :: PersonId -> Handler [Text]
-getOutgoingRequestList personId = do
-  personOpt <- runDB $ get personId
-  case personOpt of
-    Nothing -> return []
-    Just (Person email _ _ _) ->
-      runDB $ do
-        friendsOpt <- getBy $ UniqueFriend email
-        case friendsOpt of
-          Nothing -> return []
-          Just (Entity uid (Friends _ _ _ outgoingRequests)) -> return $ map pack outgoingRequests
+  list <- case personOpt of
+            Nothing -> return $ return []
+            Just (Person email _ _ _) ->
+              runDB $ do
+              friendsOpt <- selectFriends [filterFriendsEmail EQUAL email] []
+              return $ fmap (\friends -> case friends of
+                                           [] -> []
+                                           (Entity uid friend):_ ->
+                                             map pack (getter friend)) friendsOpt
+  return list
 
 
+getFriendList = getList friendsFriends
+getRequestList = getList friendsRequests
+getOutgoingRequestList = getList friendsOutgoingRequests
 
-isFriend :: PersonId -> Handler Bool
-isFriend p2 = do
+
+isInList :: (PersonId -> Handler (Tagged [Text])) -> PersonId -> Handler (Tagged (Handler (Tagged Bool)))
+isInList getter p2 = do --Tagged
   muid <- maybeAuthId
-  pid <- getAuthPerson
-  case pid of
-    Nothing -> return False
-    Just (p1, Person email1 _ _ _) -> do
-      friendList <- getFriendList p1
-      person2Opt <- runDB $ get p2
-      case person2Opt of
-        Nothing -> return False
-        Just (Person email2 _ _ _) -> return $ let e2 = pack email2 in any (\x -> e2 == x) friendList
+  pidTagged <- getAuthPerson
+  person2Opt <- runDB $ get p2
+  return $ do -- Tagged
+    pid <- pidTagged
+    case pid of
+      Nothing -> return $ ((return $ return False) :: Handler (Tagged Bool))
+      Just (p1, Person email1 _ _ _) -> return $ do --Handler
+        friendListTagged <- getter p1
+        return $ do --Tagged
+          friendList <- friendListTagged
+          return $ case person2Opt of
+                     Nothing -> False
+                     Just (Person email2 _ _ _) -> let e2 = pack email2
+                                                   in any (\x -> e2 == x) friendList
 
 
-isFriendRequest :: PersonId -> Handler Bool
-isFriendRequest p2 = do
-  muid <- maybeAuthId
-  pid <- getAuthPerson
-  case pid of
-    Nothing -> return False
-    Just (p1, Person email1 _ _ _) -> do
-      friendList <- getRequestList p1
-      person2Opt <- runDB $ get p2
-      case person2Opt of
-        Nothing -> return False
-        Just (Person email2 _ _ _) -> return $ let e2 = pack email2 in any (\x -> e2 == x) friendList
+isFriend = isInList getFriendList
+isFriendRequest = isInList getRequestList
 
-
-isMe :: PersonId -> Handler Bool
+isMe :: PersonId -> Handler (Tagged Bool)
 isMe personId = do
     muid <- maybeAuthId
-    pid <- getAuthPerson
-    case muid of
+    pidTagged <- getAuthPerson
+    return $ do
+      pid <- pidTagged
+      case muid of
         Nothing -> return False
         Just id -> case pid of
                      Nothing -> return False
@@ -328,36 +344,52 @@ isMe personId = do
                          then return True
                          else return False
 
-authorizedFriend :: PersonId -> Handler AuthResult
+authorizedFriend :: PersonId -> Handler (Tagged (Handler (Tagged AuthResult)))
 authorizedFriend personId = do
-  friend <- isFriend personId
-  me <- isMe personId
-  if friend || me
-    then return Authorized
-    else return $ Unauthorized "If you want to view this page, send a friend request."
+  friendTaggedHandlerTagged <- isFriend personId
+  meTagged <- isMe personId
+  return $ do
+    me <- meTagged
+    friendHandlerTagged <- friendTaggedHandlerTagged
+    return $ do
+      friendTagged <- friendHandlerTagged
+      return $ do
+        friend <- friendTagged
+        return $ if friend || me
+                 then Authorized
+                 else Unauthorized "If you want to view this page, send a friend request."
 
-authorizedFriendRequest :: PersonId -> Handler AuthResult
+authorizedFriendRequest :: PersonId -> Handler (Tagged (Handler (Tagged AuthResult)))
 authorizedFriendRequest personId = do
-  friend <- isFriendRequest personId
-  me <- isMe personId
-  if friend || me
-    then return Authorized
-    else return $ Unauthorized "If you want to view this page, send a friend request."
+  friendTaggedHandlerTagged <- isFriendRequest personId
+  meTagged <- isMe personId
+  return $ do
+    me <- meTagged
+    friendHandlerTagged <- friendTaggedHandlerTagged
+    return $ do
+      friendTagged <- friendHandlerTagged
+      return $ do
+        friend <- friendTagged
+        return $ if friend || me
+                 then Authorized
+                 else Unauthorized "If you want to view this page, send a friend request."
 
 
 -- | Access function to determine if a user is logged in.
-isAuthenticated :: PersonId -> Handler AuthResult
+isAuthenticated :: PersonId -> Handler (Tagged AuthResult)
 isAuthenticated personId = do
     muid <- maybeAuthId
-    pid <- getAuthPerson
-    case muid of
-        Nothing -> return $ Unauthorized "You must login to access this page"
-        Just id -> case pid of
-                     Nothing -> return $ Unauthorized "Account invalid. Please log in."
-                     Just (pid, _) -> do
-                       if pid == personId
-                         then return Authorized
-                         else return $ Unauthorized "You do not have permission to view this page."
+    pidTagged <- getAuthPerson
+    return $ do
+      pid <- pidTagged
+      return $ case muid of
+                 Nothing -> Unauthorized "You must login to access this page"
+                 Just id -> case pid of
+                              Nothing -> Unauthorized "Account invalid. Please log in."
+                              Just (pid, _) -> do
+                                if pid == personId
+                                  then Authorized
+                                  else Unauthorized "You do not have permission to view this page."
 
 instance YesodAuthPersist App
 

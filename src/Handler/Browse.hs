@@ -19,66 +19,48 @@ import qualified Data.Maybe as Maybe
 
 processPeople :: Tagged [(PersonId, Person)] -> Handler (Tagged [(Entity Person, Bool, Bool)])
 processPeople peopleList = do
-  authPerson <- Import.getAuthPerson
+  authPerson <- return Nothing --Import.getAuthPerson
   friends <- case authPerson of
                 Nothing -> return Nothing
                 Just (pid, _) -> do
-                  friendList <- Import.getFriendList pid
-                  requestList <- Import.getOutgoingRequestList pid
+                  friendList <- return ([] :: [String])--Import.getFriendList pid
+                  requestList <- return ([] :: [String])--Import.getOutgoingRequestList pid
                   return $ Just (friendList, requestList, pid)
   people <- case friends of
               Nothing -> return $ fmap (map (\(id, x) -> (Entity id x, False, False))) peopleList
               Just (friendList, requestList, me) ->
                 return $ fmap (map (\(id, Person email name street number) ->
                                       let e = pack email
-                                          isMe = me == id
                                       in
                                         (Entity id (Person email name street number),
-                                         any (\y -> y == e) friendList || isMe,
-                                         any (\y -> y == e) requestList || isMe))) peopleList
+                                         any (\y -> y == e) friendList,
+                                         any (\y -> y == e) requestList))) peopleList
   return $ people
 
 getBrowseR :: Handler Html
 getBrowseR = do
-  peopleList <- runDB $ (selectPerson ([] :: [RefinedFilter Person String]) [Asc PersonName])
+  user <- Handler.Browse.getAuthUser
+  person <- return Nothing--getAuthPerson
+  (_, Person _ name _ _) <- return $ Maybe.fromJust person
+  peopleList <- runDB $ (selectPerson ([filterPersonName NE name] {-:: [RefinedFilter Person String] -}) [Asc PersonName])
   people <- let peopleTupleList = fmap (map (\(Entity id p) -> (id, p))) peopleList
             in processPeople peopleTupleList
   peopleDetails <- return $ fmap (map (\(Entity id (Person _ name _ _), a, b) -> (id, name, a, b))) people
-  user <- getAuthUser
   defaultLayout $(widgetFile "browse")
 
 getAuthUser :: Handler User
 getAuthUser = do
   id <- maybeAuthId
   user <- runDB $ do
-    usr <- get (Maybe.fromJust id)
-    return $ Maybe.fromJust usr
+    usr <- get404 (Maybe.fromJust id)
+    return usr
   return user
-
-getAuthPerson :: Handler (Maybe (Key Person, Person))
-getAuthPerson = do
-    myId <- maybeAuthId
-    authPerson <- case myId of
-                   Nothing -> return $ Nothing
-                   Just id -> runDB $ do
-                     user <- get id
-                     authPerson <-
-                       case user of
-                         Nothing -> return $ Nothing
-                         Just u -> do
-                           x <- getBy $ UniquePerson (userEmail u)
-                           authPerson <- case x of
-                                           Nothing -> return $ Nothing
-                                           Just (Entity uid person) -> return $ Just (uid, person)
-                           return authPerson
-                     return authPerson
-    return authPerson
 
 
 getAddFriendR :: PersonId -> Handler Html
 getAddFriendR personId = do
   Person email name street number <- runDB $ get404 personId
-  authPerson <- Import.getAuthPerson
+  authPerson <- return Nothing --Import.getAuthPerson
   case authPerson of
     Nothing -> redirect HomeR --will change
     Just (myId, Person myEmail _ _ _) -> runDB $ do
@@ -99,7 +81,7 @@ getAddFriendR personId = do
 getConfirmFriendR :: PersonId -> Handler Html
 getConfirmFriendR personId = do
   Person email name street number <- runDB $ get404 personId
-  authPerson <- Import.getAuthPerson
+  authPerson <- return Nothing --Import.getAuthPerson
   case authPerson of
     Nothing -> redirect HomeR --will change
     Just (myId, Person myEmail _ _ _) -> runDB $ do
