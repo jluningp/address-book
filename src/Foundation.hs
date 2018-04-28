@@ -25,7 +25,6 @@ import qualified Data.Text.Encoding as TE
 import qualified Data.Text as T
 import qualified Yesod.Auth.Message as Msg
 import qualified Data.Maybe as Maybe
-import BinahLibrary
 
 -- | The foundation datatype for your application. This can be a good place to
 -- keep settings and values requiring initialization before your application
@@ -270,6 +269,7 @@ getAuthUser = do
                   return $ userOpt
   return authUser
 
+{-@ getAuthPerson :: Handler (Tagged<{\u -> isVerified u}> (Maybe (Key Person, Person))) @-}
 getAuthPerson :: Handler (Tagged (Maybe (Key Person, Person)))
 getAuthPerson = do
   myId <- maybeAuthId
@@ -286,7 +286,7 @@ getAuthPerson = do
                                  (Entity uid person):_ -> Just (uid, person)
   return authPerson
 
-
+{-@ getList :: (Friends -> [String]) -> PersonId -> Handler (Tagged<{\u -> isVerified u}> [Text]) @-}
 getList :: (Friends -> [String]) -> PersonId -> Handler (Tagged [Text])
 getList getter personId = do
   personOpt <- runDB $ get personId
@@ -302,11 +302,14 @@ getList getter personId = do
   return list
 
 
+{-@ getFriendList :: PersonId -> Handler (Tagged<{\u -> isVerified u}> [Text]) @-}
 getFriendList = getList friendsFriends
+{-@ getRequestList :: PersonId -> Handler (Tagged<{\u -> isVerified u}> [Text]) @-}
 getRequestList = getList friendsRequests
+{-@ getOutgoingRequestList :: PersonId -> Handler (Tagged<{\u -> isVerified u}> [Text]) @-}
 getOutgoingRequestList = getList friendsOutgoingRequests
 
-
+{-@ isInList :: (PersonId -> Handler (Tagged [Text])) -> PersonId -> Handler (Tagged<{\u -> isVerified u}> (Handler (Tagged<{\u -> isVerified u}> Bool))) @-}
 isInList :: (PersonId -> Handler (Tagged [Text])) -> PersonId -> Handler (Tagged (Handler (Tagged Bool)))
 isInList getter p2 = do --Tagged
   muid <- maybeAuthId
@@ -325,10 +328,13 @@ isInList getter p2 = do --Tagged
                      Just (Person email2 _ _ _) -> let e2 = pack email2
                                                    in any (\x -> e2 == x) friendList
 
-
+{-@ isFriend :: PersonId -> Handler (Tagged<{\u -> isVerified u}> (Handler (Tagged<{\u -> isVerified u}> Bool))) @-}
 isFriend = isInList getFriendList
+
+{-@ isFriendRequest :: PersonId -> Handler (Tagged<{\u -> isVerified u}> (Handler (Tagged<{\u -> isVerified u}> Bool))) @-}
 isFriendRequest = isInList getRequestList
 
+{-@ isMe :: PersonId -> Handler (Tagged<{\u -> isVerified u}> Bool) @-}
 isMe :: PersonId -> Handler (Tagged Bool)
 isMe personId = do
     muid <- maybeAuthId
@@ -344,6 +350,7 @@ isMe personId = do
                          then return True
                          else return False
 
+{-@ authorizedFriend :: PersonId -> Handler (Tagged<{\u -> isVerified u}> (Handler (Tagged<{\u -> isVerified u}> AuthResult))) @-}
 authorizedFriend :: PersonId -> Handler (Tagged (Handler (Tagged AuthResult)))
 authorizedFriend personId = do
   friendTaggedHandlerTagged <- isFriend personId
@@ -359,6 +366,7 @@ authorizedFriend personId = do
                  then Authorized
                  else Unauthorized "If you want to view this page, send a friend request."
 
+{-@ authorizedFriendRequest :: PersonId -> Handler (Tagged<{\u -> isVerified u}> (Handler (Tagged<{\u -> isVerified u}> AuthResult))) @-}
 authorizedFriendRequest :: PersonId -> Handler (Tagged (Handler (Tagged AuthResult)))
 authorizedFriendRequest personId = do
   friendTaggedHandlerTagged <- isFriendRequest personId
@@ -376,6 +384,7 @@ authorizedFriendRequest personId = do
 
 
 -- | Access function to determine if a user is logged in.
+{-@ isAuthenticated :: PersonId -> Handler (Tagged<{\u -> isVerified u}> AuthResult) @-}
 isAuthenticated :: PersonId -> Handler (Tagged AuthResult)
 isAuthenticated personId = do
     muid <- maybeAuthId
@@ -390,6 +399,7 @@ isAuthenticated personId = do
                                 if pid == personId
                                   then Authorized
                                   else Unauthorized "You do not have permission to view this page."
+
 
 instance YesodAuthPersist App
 
