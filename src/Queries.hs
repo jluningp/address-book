@@ -33,9 +33,6 @@ getSomething = do
   people <- runDB $ selectPerson [filterPersonEmail EQUAL "FOO"] []
   return people
 
--- Ignore the code below: if it isn't there, the project won't build, but we needed
--- a simple example so I made it undefined.
-
 {-@ getAuthPerson :: Handler (Tagged<{\u -> isVerified u}> (Maybe (Key Person, Person))) @-}
 getAuthPerson :: Handler (Tagged (Maybe (Key Person, Person)))
 getAuthPerson = do
