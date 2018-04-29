@@ -1,4 +1,3 @@
-
 {-# LANGUAGE EmptyDataDecls             #-}
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE GADTs                      #-}
@@ -14,6 +13,8 @@
 {-@ LIQUID "--higherorder"                         @-}
 {-@ LIQUID "--no-termination"                      @-}
 {-@ LIQUID "--ple" @-}
+{-@ LIQUID "--no-totality"                         @-}
+{-@ LIQUID "--no-pattern-inline"                         @-}
 
 module BinahLibrary where
 import           Prelude hiding (filter)
@@ -22,40 +23,14 @@ import           Control.Monad.Trans.Reader
 import           Database.Persist
 import           Model
 import           Data.Text hiding (map, filter)
-
-{-@ data Tagged a <p :: User -> Bool> = Tagged { content :: a } @-}
-data Tagged a = Tagged { content :: a }
-
-instance Functor Tagged where
-    fmap f (Tagged x) = Tagged (f x)
-
-instance Applicative Tagged where
-  pure  = Tagged
-  (Tagged f) <*> (Tagged x) = Tagged (f x)
-
-instance Monad Tagged where
-    return x = Tagged x
-    (Tagged x) >>= f = f x
-    (Tagged _) >>  t = t
-    fail          = error
-
-{-@ instance Monad Tagged where
-     >>= :: forall <p :: User -> Bool, f:: a -> b -> Bool>.
-            x:Tagged <p> a
-         -> (u:a -> Tagged <p> (b <f u>))
-         -> Tagged <p> (b<f (content x)>);
-     >>  :: x:Tagged a
-         -> Tagged b
-         -> Tagged b;
-     return :: forall <p :: User -> Bool>. a -> Tagged <p> a
-@-}
-
-
-{-@ data variance Tagged covariant contravariant @-}
+import           TaggedUser
+import           TaggedEmail
+import           TaggedPerson
+import           TaggedFriends
 
 data RefinedPersistFilter = EQUAL | NE | LE | LTP | GE | GTP
 
-{-@ data RefinedFilter record typ <p :: User -> Bool> = RefinedFilter
+{-@ data RefinedFilter record typ <p :: record -> User -> Bool> = RefinedFilter
     { refinedFilterField  :: EntityField record typ
     , refinedFilterValue  :: typ
     , refinedFilterFilter :: RefinedPersistFilter
@@ -76,60 +51,6 @@ data RefinedUpdate record typ = RefinedUpdate
     { refinedUpdateField :: EntityField record typ
     , refinedUpdateValue :: typ
     }
-
-(=#) :: EntityField v typ -> typ -> RefinedUpdate v typ
-x =# y = RefinedUpdate x y
-
-{-@ reflect ==# @-}
-(==#) :: (PersistEntity record, Eq typ) =>
-                 EntityField record typ -> typ -> RefinedFilter record typ
-field ==# value = RefinedFilter field value EQUAL
-
-{-@ reflect /=# @-}
-(/=#) :: (PersistEntity record, Eq typ) =>
-                 EntityField record typ -> typ -> RefinedFilter record typ
-field /=# value = RefinedFilter field value NE
-
-{-@ reflect <=# @-}
-(<=#) :: (PersistEntity record, Eq typ) =>
-                 EntityField record typ -> typ -> RefinedFilter record typ
-field <=# value =
-  RefinedFilter {
-    refinedFilterField = field
-  , refinedFilterValue = value
-  , refinedFilterFilter = LE
-  }
-
-{-@ reflect <# @-}
-(<#) :: (PersistEntity record, Eq typ) =>
-                 EntityField record typ -> typ -> RefinedFilter record typ
-field <# value =
-  RefinedFilter {
-    refinedFilterField = field
-  , refinedFilterValue = value
-  , refinedFilterFilter = LTP
-  }
-
-{-@ reflect >=# @-}
-(>=#) :: (PersistEntity record, Eq typ) =>
-                 EntityField record typ -> typ -> RefinedFilter record typ
-field >=# value =
-  RefinedFilter {
-    refinedFilterField = field
-  , refinedFilterValue = value
-  , refinedFilterFilter = GE
-  }
-
-{-@ reflect ># @-}
-(>#) :: (PersistEntity record, Eq typ) =>
-                 EntityField record typ -> typ -> RefinedFilter record typ
-field ># value =
-  RefinedFilter {
-    refinedFilterField = field
-  , refinedFilterValue = value
-  , refinedFilterFilter = GE
-  }
-
 
 toPersistentFilter :: PersistField typ =>
                       RefinedFilter record typ -> Filter record
@@ -325,151 +246,406 @@ evalQsFriends :: [RefinedFilter Friends typ] -> Friends -> Bool
 evalQsFriends (f:fs) x = evalQFriends f x && (evalQsFriends fs x)
 evalQsFriends [] _ = True
 
-{-@ filterUserEmail :: RefinedPersistFilter -> String -> RefinedFilter<{\u -> true}> User (String) @-}
-{-@ reflect filterUserEmail @-}
-filterUserEmail :: RefinedPersistFilter -> String -> RefinedFilter User (String)
-filterUserEmail f v = RefinedFilter UserEmail v f
+-- End evalQs
 
-{-@ filterUserPassword :: RefinedPersistFilter -> Maybe String -> RefinedFilter<{\u -> true}> User (Maybe String) @-}
-{-@ reflect filterUserPassword @-}
-filterUserPassword :: RefinedPersistFilter -> Maybe String -> RefinedFilter User (Maybe String)
-filterUserPassword f v = RefinedFilter UserPassword v f
-
-{-@ filterUserVerkey :: RefinedPersistFilter -> Maybe String -> RefinedFilter<{\u -> true}> User (Maybe String) @-}
-{-@ reflect filterUserVerkey @-}
-filterUserVerkey :: RefinedPersistFilter -> Maybe String -> RefinedFilter User (Maybe String)
-filterUserVerkey f v = RefinedFilter UserVerkey v f
-
-{-@ filterUserVerified :: RefinedPersistFilter -> Int -> RefinedFilter<{\u -> true}> User (Int) @-}
-{-@ reflect filterUserVerified @-}
-filterUserVerified :: RefinedPersistFilter -> Int -> RefinedFilter User (Int)
-filterUserVerified f v = RefinedFilter UserVerified v f
-
-{-@ filterEmailEmail :: RefinedPersistFilter -> String -> RefinedFilter<{\u -> true}> Email (String) @-}
-{-@ reflect filterEmailEmail @-}
-filterEmailEmail :: RefinedPersistFilter -> String -> RefinedFilter Email (String)
-filterEmailEmail f v = RefinedFilter EmailEmail v f
-
-{-@ filterEmailUserId :: RefinedPersistFilter -> Maybe UserId -> RefinedFilter<{\u -> true}> Email (Maybe UserId) @-}
-{-@ reflect filterEmailUserId @-}
-filterEmailUserId :: RefinedPersistFilter -> Maybe UserId -> RefinedFilter Email (Maybe UserId)
-filterEmailUserId f v = RefinedFilter EmailUserId v f
-
-{-@ filterEmailVerkey :: RefinedPersistFilter -> Maybe String -> RefinedFilter<{\u -> true}> Email (Maybe String) @-}
-{-@ reflect filterEmailVerkey @-}
-filterEmailVerkey :: RefinedPersistFilter -> Maybe String -> RefinedFilter Email (Maybe String)
-filterEmailVerkey f v = RefinedFilter EmailVerkey v f
-
-{-@ filterPersonEmail :: RefinedPersistFilter -> String -> RefinedFilter<{\u -> true}> Person (String) @-}
-{-@ reflect filterPersonEmail @-}
-filterPersonEmail :: RefinedPersistFilter -> String -> RefinedFilter Person (String)
-filterPersonEmail f v = RefinedFilter PersonEmail v f
-
-{-@ filterPersonName :: RefinedPersistFilter -> {n:String | len n > 0} -> RefinedFilter<{\u -> isVerified u}> Person (String) @-}
-{-@ reflect filterPersonName @-}
-filterPersonName :: RefinedPersistFilter -> String -> RefinedFilter Person (String)
-filterPersonName f v = RefinedFilter PersonName v f
-
-{-@ filterPersonStreet :: RefinedPersistFilter -> {n:String | len n > 0} -> RefinedFilter<{\u -> true}> Person (String) @-}
-{-@ reflect filterPersonStreet @-}
-filterPersonStreet :: RefinedPersistFilter -> String -> RefinedFilter Person (String)
-filterPersonStreet f v = RefinedFilter PersonStreet v f
-
-{-@ filterPersonNumber :: RefinedPersistFilter -> {v:Int | v > 0} -> RefinedFilter<{\u -> userEmail u == "test@gmail.com"}> Person (Int) @-}
-{-@ reflect filterPersonNumber @-}
-filterPersonNumber :: RefinedPersistFilter -> Int -> RefinedFilter Person (Int)
-filterPersonNumber f v = RefinedFilter PersonNumber v f
-
-{-@ filterFriendsEmail :: RefinedPersistFilter -> String -> RefinedFilter<{\u -> true}> Friends (String) @-}
-{-@ reflect filterFriendsEmail @-}
-filterFriendsEmail :: RefinedPersistFilter -> String -> RefinedFilter Friends (String)
-filterFriendsEmail f v = RefinedFilter FriendsEmail v f
-
-{-@ filterFriendsRequests :: RefinedPersistFilter -> [String] -> RefinedFilter<{\u -> true}> Friends ([String]) @-}
-{-@ reflect filterFriendsRequests @-}
-filterFriendsRequests :: RefinedPersistFilter -> [String] -> RefinedFilter Friends ([String])
-filterFriendsRequests f v = RefinedFilter FriendsRequests v f
-
-{-@ filterFriendsFriends :: RefinedPersistFilter -> [String] -> RefinedFilter<{\u -> true}> Friends ([String]) @-}
-{-@ reflect filterFriendsFriends @-}
-filterFriendsFriends :: RefinedPersistFilter -> [String] -> RefinedFilter Friends ([String])
-filterFriendsFriends f v = RefinedFilter FriendsFriends v f
-
-{-@ filterFriendsOutgoingRequests :: RefinedPersistFilter -> [String] -> RefinedFilter<{\u -> true}> Friends ([String]) @-}
-{-@ reflect filterFriendsOutgoingRequests @-}
-filterFriendsOutgoingRequests :: RefinedPersistFilter -> [String] -> RefinedFilter Friends ([String])
-filterFriendsOutgoingRequests f v = RefinedFilter FriendsOutgoingRequests v f
-
-{-@ assume selectFriends :: forall <p:: User -> Bool>. f:[RefinedFilter<p> Friends typ]
-                -> [SelectOpt Friends]
-                -> Control.Monad.Trans.Reader.ReaderT backend m (Tagged<p> [Entity {v:Friends | evalQsFriends f v}]) @-}
-selectFriends :: (PersistEntityBackend Friends ~ BaseBackend backend,
-      PersistEntity Friends, Control.Monad.IO.Class.MonadIO m,
-      PersistQueryRead backend, PersistField typ) =>
-      [RefinedFilter Friends typ]
-      -> [SelectOpt Friends]
-      -> Control.Monad.Trans.Reader.ReaderT backend m (Tagged [Entity Friends])
-selectFriends fs ts = selectList (map toPersistentFilter fs) ts >>= return . Tagged
-
-{-@ assume selectPerson :: forall <p:: User -> Bool>. f:[RefinedFilter<p> Person typ]
-                -> [SelectOpt Person]
-                -> Control.Monad.Trans.Reader.ReaderT backend m (Tagged<p> [Entity {v:Person | evalQsPerson f v}]) @-}
-selectPerson :: (PersistEntityBackend Person ~ BaseBackend backend,
-      PersistEntity Person, Control.Monad.IO.Class.MonadIO m,
-      PersistQueryRead backend, PersistField typ) =>
-      [RefinedFilter Person typ]
-      -> [SelectOpt Person]
-      -> Control.Monad.Trans.Reader.ReaderT backend m (Tagged [Entity Person])
-selectPerson fs ts = selectList (map toPersistentFilter fs) ts >>= return . Tagged
-
-{-@ assume selectEmail :: forall <p:: User -> Bool>. f:[RefinedFilter<p> Email typ]
-                -> [SelectOpt Email]
-                -> Control.Monad.Trans.Reader.ReaderT backend m (Tagged<p> [Entity {v:Email | evalQsEmail f v}]) @-}
-selectEmail :: (PersistEntityBackend Email ~ BaseBackend backend,
-      PersistEntity Email, Control.Monad.IO.Class.MonadIO m,
-      PersistQueryRead backend, PersistField typ) =>
-      [RefinedFilter Email typ]
-      -> [SelectOpt Email]
-      -> Control.Monad.Trans.Reader.ReaderT backend m (Tagged [Entity Email])
-selectEmail fs ts = selectList (map toPersistentFilter fs) ts >>= return . Tagged
-
-{-@ assume selectUser :: forall <p:: User -> Bool>. f:[RefinedFilter<p> User typ]
+{-@ assume selectUser :: forall <p :: User -> User -> Bool>. f:[RefinedFilter<p> User typ]
                 -> [SelectOpt User]
-                -> Control.Monad.Trans.Reader.ReaderT backend m (Tagged<p> [Entity {v:User | evalQsUser f v}]) @-}
+                -> Control.Monad.Trans.Reader.ReaderT backend m (TaggedUser<p> [Entity {v:User | evalQsUser f v}]) @-}
 selectUser :: (PersistEntityBackend User ~ BaseBackend backend,
       PersistEntity User, Control.Monad.IO.Class.MonadIO m,
       PersistQueryRead backend, PersistField typ) =>
       [RefinedFilter User typ]
       -> [SelectOpt User]
-      -> Control.Monad.Trans.Reader.ReaderT backend m (Tagged [Entity User])
-selectUser fs ts = selectList (map toPersistentFilter fs) ts >>= return . Tagged
+      -> Control.Monad.Trans.Reader.ReaderT backend m (TaggedUser [Entity User])
+selectUser fs ts = selectList (map toPersistentFilter fs) ts >>= return . TaggedUser
 
-{-@ safeShow :: forall <p :: User -> Bool>.
-                Tagged<p> a
-             -> User<p>
-             -> String
-@-}
-safeShow :: Show a => Tagged a -> User -> String
-safeShow (Tagged x) _ = show x
+{-@ assume selectEmail :: forall <p :: Email -> User -> Bool>. f:[RefinedFilter<p> Email typ]
+                -> [SelectOpt Email]
+                -> Control.Monad.Trans.Reader.ReaderT backend m (TaggedEmail<p> [Entity {v:Email | evalQsEmail f v}]) @-}
+selectEmail :: (PersistEntityBackend Email ~ BaseBackend backend,
+      PersistEntity Email, Control.Monad.IO.Class.MonadIO m,
+      PersistQueryRead backend, PersistField typ) =>
+      [RefinedFilter Email typ]
+      -> [SelectOpt Email]
+      -> Control.Monad.Trans.Reader.ReaderT backend m (TaggedEmail [Entity Email])
+selectEmail fs ts = selectList (map toPersistentFilter fs) ts >>= return . TaggedEmail
 
-{-@ safeUnwrap :: forall <p :: User -> Bool>.
-                Tagged<p> a
-             -> User<p>
-             -> a
-@-}
-safeUnwrap :: Tagged a -> User -> a
-safeUnwrap (Tagged x) _ = x
+{-@ assume selectPerson :: forall <p :: Person -> User -> Bool>. f:[RefinedFilter<p> Person typ]
+                -> [SelectOpt Person]
+                -> Control.Monad.Trans.Reader.ReaderT backend m (TaggedPerson<p> [Entity {v:Person | evalQsPerson f v}]) @-}
+selectPerson :: (PersistEntityBackend Person ~ BaseBackend backend,
+      PersistEntity Person, Control.Monad.IO.Class.MonadIO m,
+      PersistQueryRead backend, PersistField typ) =>
+      [RefinedFilter Person typ]
+      -> [SelectOpt Person]
+      -> Control.Monad.Trans.Reader.ReaderT backend m (TaggedPerson [Entity Person])
+selectPerson fs ts = selectList (map toPersistentFilter fs) ts >>= return . TaggedPerson
 
---testSelect () = selectPerson [filterPersonNumber EQUAL 3] []
+{-@ assume selectFriends :: forall <p :: Friends -> User -> Bool>. f:[RefinedFilter<p> Friends typ]
+                -> [SelectOpt Friends]
+                -> Control.Monad.Trans.Reader.ReaderT backend m (TaggedFriends<p> [Entity {v:Friends | evalQsFriends f v}]) @-}
+selectFriends :: (PersistEntityBackend Friends ~ BaseBackend backend,
+      PersistEntity Friends, Control.Monad.IO.Class.MonadIO m,
+      PersistQueryRead backend, PersistField typ) =>
+      [RefinedFilter Friends typ]
+      -> [SelectOpt Friends]
+      -> Control.Monad.Trans.Reader.ReaderT backend m (TaggedFriends [Entity Friends])
+selectFriends fs ts = selectList (map toPersistentFilter fs) ts >>= return . TaggedFriends
 
-testSafeShow () = do
-  taggedUsers <- selectPerson [filterPersonNumber EQUAL 3] []
-  return $ safeShow taggedUsers (User "test@gmail.com" Nothing Nothing 0)
-  --return $ safeUnwrap taggedUsers (User "foo" Nothing Nothing 0)
+{-@ filterUserEmail :: RefinedPersistFilter -> String -> RefinedFilter<{\u v -> true}> User (String) @-}
+{-@ reflect filterUserEmail @-}
+filterUserEmail :: RefinedPersistFilter -> String -> RefinedFilter User (String)
+filterUserEmail f v = RefinedFilter UserEmail v f
+
+{-@ filterUserPassword :: RefinedPersistFilter -> Maybe String -> RefinedFilter<{\u v -> true}> User (Maybe String) @-}
+{-@ reflect filterUserPassword @-}
+filterUserPassword :: RefinedPersistFilter -> Maybe String -> RefinedFilter User (Maybe String)
+filterUserPassword f v = RefinedFilter UserPassword v f
+
+{-@ filterUserVerkey :: RefinedPersistFilter -> Maybe String -> RefinedFilter<{\u v -> true}> User (Maybe String) @-}
+{-@ reflect filterUserVerkey @-}
+filterUserVerkey :: RefinedPersistFilter -> Maybe String -> RefinedFilter User (Maybe String)
+filterUserVerkey f v = RefinedFilter UserVerkey v f
+
+{-@ filterUserVerified :: RefinedPersistFilter -> Int -> RefinedFilter<{\u v -> true}> User (Int) @-}
+{-@ reflect filterUserVerified @-}
+filterUserVerified :: RefinedPersistFilter -> Int -> RefinedFilter User (Int)
+filterUserVerified f v = RefinedFilter UserVerified v f
+
+{-@ filterEmailEmail :: RefinedPersistFilter -> String -> RefinedFilter<{\u v -> true}> Email (String) @-}
+{-@ reflect filterEmailEmail @-}
+filterEmailEmail :: RefinedPersistFilter -> String -> RefinedFilter Email (String)
+filterEmailEmail f v = RefinedFilter EmailEmail v f
+
+{-@ filterEmailUserId :: RefinedPersistFilter -> Maybe UserId -> RefinedFilter<{\u v -> true}> Email (Maybe UserId) @-}
+{-@ reflect filterEmailUserId @-}
+filterEmailUserId :: RefinedPersistFilter -> Maybe UserId -> RefinedFilter Email (Maybe UserId)
+filterEmailUserId f v = RefinedFilter EmailUserId v f
+
+{-@ filterEmailVerkey :: RefinedPersistFilter -> Maybe String -> RefinedFilter<{\u v -> true}> Email (Maybe String) @-}
+{-@ reflect filterEmailVerkey @-}
+filterEmailVerkey :: RefinedPersistFilter -> Maybe String -> RefinedFilter Email (Maybe String)
+filterEmailVerkey f v = RefinedFilter EmailVerkey v f
+
+{-@ filterPersonEmail :: RefinedPersistFilter -> String -> RefinedFilter<{\u v -> personEmail u == userEmail v}> Person (String) @-}
+{-@ reflect filterPersonEmail @-}
+filterPersonEmail :: RefinedPersistFilter -> String -> RefinedFilter Person (String)
+filterPersonEmail f v = RefinedFilter PersonEmail v f
+
+{-@ filterPersonName :: RefinedPersistFilter -> {n:String | len n > 0} -> RefinedFilter<{\u v -> true}> Person (String) @-}
+{-@ reflect filterPersonName @-}
+filterPersonName :: RefinedPersistFilter -> String -> RefinedFilter Person (String)
+filterPersonName f v = RefinedFilter PersonName v f
+
+{-@ filterPersonStreet :: RefinedPersistFilter -> {n:String | len n > 0} -> RefinedFilter<{\u v -> true}> Person (String) @-}
+{-@ reflect filterPersonStreet @-}
+filterPersonStreet :: RefinedPersistFilter -> String -> RefinedFilter Person (String)
+filterPersonStreet f v = RefinedFilter PersonStreet v f
+
+{-@ filterPersonNumber :: RefinedPersistFilter -> {v:Int | v > 0} -> RefinedFilter<{\u v -> true}> Person (Int) @-}
+{-@ reflect filterPersonNumber @-}
+filterPersonNumber :: RefinedPersistFilter -> Int -> RefinedFilter Person (Int)
+filterPersonNumber f v = RefinedFilter PersonNumber v f
+
+{-@ filterFriendsEmail :: RefinedPersistFilter -> String -> RefinedFilter<{\u v -> true}> Friends (String) @-}
+{-@ reflect filterFriendsEmail @-}
+filterFriendsEmail :: RefinedPersistFilter -> String -> RefinedFilter Friends (String)
+filterFriendsEmail f v = RefinedFilter FriendsEmail v f
+
+{-@ filterFriendsRequests :: RefinedPersistFilter -> [String] -> RefinedFilter<{\u v -> true}> Friends ([String]) @-}
+{-@ reflect filterFriendsRequests @-}
+filterFriendsRequests :: RefinedPersistFilter -> [String] -> RefinedFilter Friends ([String])
+filterFriendsRequests f v = RefinedFilter FriendsRequests v f
+
+{-@ filterFriendsFriends :: RefinedPersistFilter -> [String] -> RefinedFilter<{\u v -> true}> Friends ([String]) @-}
+{-@ reflect filterFriendsFriends @-}
+filterFriendsFriends :: RefinedPersistFilter -> [String] -> RefinedFilter Friends ([String])
+filterFriendsFriends f v = RefinedFilter FriendsFriends v f
+
+{-@ filterFriendsOutgoingRequests :: RefinedPersistFilter -> [String] -> RefinedFilter<{\u v -> true}> Friends ([String]) @-}
+{-@ reflect filterFriendsOutgoingRequests @-}
+filterFriendsOutgoingRequests :: RefinedPersistFilter -> [String] -> RefinedFilter Friends ([String])
+filterFriendsOutgoingRequests f v = RefinedFilter FriendsOutgoingRequests v f
+
+
+{-@ safeUnwrapUser ::
+             row:TaggedUser<{\u v -> false}> User
+          -> viewer:(TaggedUser<{\u v -> true}> User)
+          -> msg:TaggedUser<{\u v -> v == userContent viewer && u == userContent row}> a
+          -> a @-}
+safeUnwrapUser :: TaggedUser User -> TaggedUser User -> TaggedUser a -> a
+safeUnwrapUser _ _ (TaggedUser x) = x
+
+{-@ safeUnwrapEmail ::
+             row:TaggedEmail <{\u v -> false}> Email
+          -> viewer:(TaggedEmail <{\u v -> true}> User)
+          -> msg:TaggedEmail <{\u v -> v == emailContent viewer && u == emailContent row}> a
+          -> a @-}
+safeUnwrapEmail :: TaggedEmail Email -> TaggedEmail User -> TaggedEmail a -> a
+safeUnwrapEmail _ _ (TaggedEmail x) = x
+
+{-@ safeUnwrapPerson ::
+             row:TaggedPerson <{\u v -> false}> Person
+          -> viewer:(TaggedPerson <{\u v -> true}> User)
+          -> msg:TaggedPerson <{\u v -> v == personContent viewer && u == personContent row}> a
+          -> a @-}
+safeUnwrapPerson :: TaggedPerson Person -> TaggedPerson User -> TaggedPerson a -> a
+safeUnwrapPerson _ _ (TaggedPerson x) = x
+
+{-@ safeUnwrapFriends ::
+             row:TaggedFriends <{\u v -> false}> Friends
+          -> viewer:(TaggedFriends <{\u v -> true}> User)
+          -> msg:TaggedFriends<{\u v -> v == friendsContent viewer && u == friendsContent row}> a
+          -> a @-}
+safeUnwrapFriends :: TaggedFriends Friends -> TaggedFriends User -> TaggedFriends a -> a
+safeUnwrapFriends _ _ (TaggedFriends x) = x
 
 {-@ measure isVerified :: User -> Bool @-}
-
 {-@ assume isUserVerified :: u:User -> {b:Bool | b <=> isVerified u} @-}
 isUserVerified :: User -> Bool
 isUserVerified (User _ _ _ 1) = True
 isUserVerified (User _ _ _ 0) = False
+
+{-@ assume isPersonSameUser :: forall <p :: Person -> User -> Bool>.
+   u:TaggedPerson<p> Person ->
+   v:TaggedPerson<p> User ->
+   TaggedPerson<p> {b:Bool | b <=> personEmail (personContent u) == (userEmail (personContent v))}
+@-}
+isPersonSameUser :: TaggedPerson Person -> TaggedPerson User -> TaggedPerson Bool
+isPersonSameUser person user = do
+  p <- person
+  u <- user
+  return $ userEmail u == (personEmail p)
+
+{-@ measure personFriendsWithUser :: Person -> User -> Bool @-}
+{-@ assume isPersonFriendsWithUser :: forall <p :: Person -> User -> Bool>.
+   u:TaggedPerson<p> Person ->
+   v:TaggedPerson<p> User ->
+   TaggedPerson<p> {b:Bool | b <=> personFriendsWithUser (personContent u) (personContent v)}
+@-}
+isPersonFriendsWithUser :: TaggedPerson Person -> TaggedPerson User -> TaggedPerson Bool
+isPersonFriendsWithUser = undefined
+
+
+-- Getters
+
+{-@ getUserEmail :: forall <p :: User -> User -> Bool, q :: User -> User -> Bool>.
+    {w :: User |- User<q w> <: User<{\u v -> true}>}
+    {w :: User |- User<q w> <: User<p w>}
+    TaggedUser<p> User -> TaggedUser<q> (String)
+@-}
+getUserEmail :: TaggedUser User -> TaggedUser (String)
+getUserEmail (TaggedUser x) = TaggedUser $ userEmail x
+
+{-@ getUserPassword :: forall <p :: User -> User -> Bool, q :: User -> User -> Bool>.
+    {w :: User |- User<q w> <: User<{\u v -> true}>}
+    {w :: User |- User<q w> <: User<p w>}
+    TaggedUser<p> User -> TaggedUser<q> (Maybe String)
+@-}
+getUserPassword :: TaggedUser User -> TaggedUser (Maybe String)
+getUserPassword (TaggedUser x) = TaggedUser $ userPassword x
+
+{-@ getUserVerkey :: forall <p :: User -> User -> Bool, q :: User -> User -> Bool>.
+    {w :: User |- User<q w> <: User<{\u v -> true}>}
+    {w :: User |- User<q w> <: User<p w>}
+    TaggedUser<p> User -> TaggedUser<q> (Maybe String)
+@-}
+getUserVerkey :: TaggedUser User -> TaggedUser (Maybe String)
+getUserVerkey (TaggedUser x) = TaggedUser $ userVerkey x
+
+{-@ getUserVerified :: forall <p :: User -> User -> Bool, q :: User -> User -> Bool>.
+    {w :: User |- User<q w> <: User<{\u v -> true}>}
+    {w :: User |- User<q w> <: User<p w>}
+    TaggedUser<p> User -> TaggedUser<q> (Int)
+@-}
+getUserVerified :: TaggedUser User -> TaggedUser (Int)
+getUserVerified (TaggedUser x) = TaggedUser $ userVerified x
+
+{-@ getEmailEmail :: forall <p :: Email -> User -> Bool, q :: Email -> User -> Bool>.
+    {w :: Email |- User<q w> <: User<{\u v -> true}>}
+    {w :: Email |- User<q w> <: User<p w>}
+    TaggedEmail<p> Email -> TaggedEmail<q> (String)
+@-}
+getEmailEmail :: TaggedEmail Email -> TaggedEmail (String)
+getEmailEmail (TaggedEmail x) = TaggedEmail $ emailEmail x
+
+{-@ getEmailUserId :: forall <p :: Email -> User -> Bool, q :: Email -> User -> Bool>.
+    {w :: Email |- User<q w> <: User<{\u v -> true}>}
+    {w :: Email |- User<q w> <: User<p w>}
+    TaggedEmail<p> Email -> TaggedEmail<q> (Maybe UserId)
+@-}
+getEmailUserId :: TaggedEmail Email -> TaggedEmail (Maybe UserId)
+getEmailUserId (TaggedEmail x) = TaggedEmail $ emailUserId x
+
+{-@ getEmailVerkey :: forall <p :: Email -> User -> Bool, q :: Email -> User -> Bool>.
+    {w :: Email |- User<q w> <: User<{\u v -> true}>}
+    {w :: Email |- User<q w> <: User<p w>}
+    TaggedEmail<p> Email -> TaggedEmail<q> (Maybe String)
+@-}
+getEmailVerkey :: TaggedEmail Email -> TaggedEmail (Maybe String)
+getEmailVerkey (TaggedEmail x) = TaggedEmail $ emailVerkey x
+
+{-@ getPersonEmail :: forall <p :: Person -> User -> Bool, q :: Person -> User -> Bool>.
+    {w :: Person |- User<q w> <: User<{\u v -> true}>}
+    {w :: Person |- User<q w> <: User<p w>}
+    TaggedPerson<p> Person -> TaggedPerson<q> (String)
+@-}
+getPersonEmail :: TaggedPerson Person -> TaggedPerson (String)
+getPersonEmail (TaggedPerson x) = TaggedPerson $ personEmail x
+
+{-@ getPersonName :: forall <p :: Person -> User -> Bool, q :: Person -> User -> Bool>.
+    {w :: Person |- User<q w> <: User<{\u v -> true}>}
+    {w :: Person |- User<q w> <: User<p w>}
+    TaggedPerson<p> Person -> TaggedPerson<q> (String)
+@-}
+getPersonName :: TaggedPerson Person -> TaggedPerson (String)
+getPersonName (TaggedPerson x) = TaggedPerson $ personName x
+
+{-@ getPersonStreet :: forall <p :: Person -> User -> Bool, q :: Person -> User -> Bool>.
+    {w :: Person |- User<q w> <: User<{\u v -> true}>}
+    {w :: Person |- User<q w> <: User<p w>}
+    TaggedPerson<p> Person -> TaggedPerson<q> (String)
+@-}
+getPersonStreet :: TaggedPerson Person -> TaggedPerson (String)
+getPersonStreet (TaggedPerson x) = TaggedPerson $ personStreet x
+
+{-@ getPersonNumber :: forall <p :: Person -> User -> Bool, q :: Person -> User -> Bool>.
+    {w :: Person |- User<q w> <: User<{\u v -> true}>}
+    {w :: Person |- User<q w> <: User<p w>}
+    TaggedPerson<p> Person -> TaggedPerson<q> (Int)
+@-}
+getPersonNumber :: TaggedPerson Person -> TaggedPerson (Int)
+getPersonNumber (TaggedPerson x) = TaggedPerson $ personNumber x
+
+{-@ getFriendsEmail :: forall <p :: Friends -> User -> Bool, q :: Friends -> User -> Bool>.
+    {w :: Friends |- User<q w> <: User<{\u v -> true}>}
+    {w :: Friends |- User<q w> <: User<p w>}
+    TaggedFriends<p> Friends -> TaggedFriends<q> (String)
+@-}
+getFriendsEmail :: TaggedFriends Friends -> TaggedFriends (String)
+getFriendsEmail (TaggedFriends x) = TaggedFriends $ friendsEmail x
+
+{-@ getFriendsRequests :: forall <p :: Friends -> User -> Bool, q :: Friends -> User -> Bool>.
+    {w :: Friends |- User<q w> <: User<{\u v -> true}>}
+    {w :: Friends |- User<q w> <: User<p w>}
+    TaggedFriends<p> Friends -> TaggedFriends<q> ([String])
+@-}
+getFriendsRequests :: TaggedFriends Friends -> TaggedFriends ([String])
+getFriendsRequests (TaggedFriends x) = TaggedFriends $ friendsRequests x
+
+{-@ getFriendsFriends :: forall <p :: Friends -> User -> Bool, q :: Friends -> User -> Bool>.
+    {w :: Friends |- User<q w> <: User<{\u v -> true}>}
+    {w :: Friends |- User<q w> <: User<p w>}
+    TaggedFriends<p> Friends -> TaggedFriends<q> ([String])
+@-}
+getFriendsFriends :: TaggedFriends Friends -> TaggedFriends ([String])
+getFriendsFriends (TaggedFriends x) = TaggedFriends $ friendsFriends x
+
+{-@ getFriendsOutgoingRequests :: forall <p :: Friends -> User -> Bool, q :: Friends -> User -> Bool>.
+    {w :: Friends |- User<q w> <: User<{\u v -> true}>}
+    {w :: Friends |- User<q w> <: User<p w>}
+    TaggedFriends<p> Friends -> TaggedFriends<q> ([String])
+@-}
+getFriendsOutgoingRequests :: TaggedFriends Friends -> TaggedFriends ([String])
+getFriendsOutgoingRequests (TaggedFriends x) = TaggedFriends $ friendsOutgoingRequests x
+
+-- Tests
+-- TODO: move downgrades into the Tagged files!
+
+{-@
+downgradeBool :: forall < p :: User -> User -> Bool
+                , q :: User -> User -> Bool
+                , r :: Bool -> Bool
+                >.
+       {w:: User, x:: {v:Bool<r> | v <=> true} |- User<p w> <: User<q w>}
+      x: TaggedUser <q> (Bool<r>)
+    -> TaggedUser <p> (Bool<r>)
+@-}
+downgradeBool :: TaggedUser Bool -> TaggedUser Bool
+downgradeBool (TaggedUser x) = TaggedUser x
+
+{-@
+downgradeBoolPerson :: forall < p :: Person -> User -> Bool
+                , q :: Person -> User -> Bool
+                , r :: Bool -> Bool
+                >.
+       {w:: Person, x:: {v:Bool<r> | v <=> true} |- User<p w> <: User<q w>}
+      x: TaggedPerson <q> (Bool<r>)
+    -> TaggedPerson <p> (Bool<r>)
+@-}
+downgradeBoolPerson :: TaggedPerson Bool -> TaggedPerson Bool
+downgradeBoolPerson (TaggedPerson x) = TaggedPerson x
+
+{-@ defaultFriends :: TaggedUser <{\u v -> true}> [User] @-}
+defaultFriends :: TaggedUser [User]
+defaultFriends = return []
+
+{-@ message :: viewer:TaggedUser <{\u v -> true}> User -> 
+               user:TaggedUser <{\u v -> isVerified v}> User ->
+               TaggedUser <{\u v -> v == userContent viewer && u == userContent user}> [User] @-}
+message :: TaggedUser User -> TaggedUser User -> TaggedUser [User]
+message viewer user =
+  let verified = do v <- viewer
+                    return $ isUserVerified v in
+  let b = downgradeBool verified in
+  do
+    c <- b
+    if c 
+      then (return [])
+      else defaultFriends
+
+{-@ selectTaggedData :: () -> TaggedUser<{\u v -> isVerified v}> User @-}
+selectTaggedData :: () -> TaggedUser User
+selectTaggedData () = undefined
+
+sink :: TaggedUser User -> TaggedUser User -> [User]
+sink viewer viewer2 =
+  let user = selectTaggedData () in
+  let out = message viewer user in
+  safeUnwrapUser user viewer out
+
+{-@ messagePersonEmail :: viewer:TaggedPerson <{\u v -> true}> User -> 
+               person:TaggedPerson <{\u v -> personEmail u == (userEmail v)}> Person ->
+               TaggedPerson<{\u v -> v == personContent viewer && u == personContent person}> String @-}
+messagePersonEmail :: TaggedPerson User -> TaggedPerson Person -> TaggedPerson String 
+messagePersonEmail viewer person =
+  let emailsEqual = isPersonSameUser person viewer in
+  let b = downgradeBoolPerson emailsEqual in
+  do
+    c <- b
+    if c 
+      then (person >>= (return . personEmail))
+      else return ""
+
+{-@ messagePersonStreet :: viewer:TaggedPerson <{\u v -> true}> User -> 
+               person:TaggedPerson <{\u v -> personFriendsWithUser u v}> Person ->
+               TaggedPerson<{\u v -> v == personContent viewer && u == personContent person}> String @-}
+messagePersonStreet :: TaggedPerson User -> TaggedPerson Person -> TaggedPerson String 
+messagePersonStreet viewer person =
+  let friends = isPersonFriendsWithUser person viewer in
+  let b = downgradeBoolPerson friends in
+  do
+    c <- b
+    if c 
+      then (person >>= (return . personStreet))
+      else return ""
+
+{-@ selectTaggedDataPerson :: () -> TaggedPerson <{\u v -> personEmail u == (userEmail v)}> Person @-}
+selectTaggedDataPerson :: () -> TaggedPerson Person 
+selectTaggedDataPerson () = undefined
+
+{-@ selectTaggedDataPersonStreet :: () -> TaggedPerson <{\u v -> personFriendsWithUser u v}> Person @-}
+selectTaggedDataPersonStreet :: () -> TaggedPerson Person 
+selectTaggedDataPersonStreet () = undefined
+
+sinkPersonEmail :: TaggedPerson User -> TaggedPerson User -> String
+sinkPersonEmail viewer viewer2 =
+  let user = selectTaggedDataPerson () in
+  let out = messagePersonEmail viewer user in
+  safeUnwrapPerson user viewer out
+
+sinkPersonStreet :: TaggedPerson User -> TaggedPerson User -> String
+sinkPersonStreet viewer viewer2 =
+  let user = selectTaggedDataPersonStreet () in
+  let out = messagePersonStreet viewer user in
+  safeUnwrapPerson user viewer out
