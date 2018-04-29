@@ -17,6 +17,10 @@ import Queries
 import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3)
 import Text.Julius (RawJS (..))
 import qualified Data.Maybe as Maybe
+import           TaggedUser
+import           TaggedEmail
+import           TaggedPerson
+import           TaggedFriends
 
 -- Define our data that will be used for creating the form.
 data FileForm = FileForm
@@ -34,8 +38,8 @@ data FileForm = FileForm
 
 {-@ assume Prelude.error :: String -> a @-}
 
-{-@ getPersonDetails :: String -> Handler (Tagged<{\u -> isVerified u}> (PersonId, Person)) @-}
-getPersonDetails :: String -> Handler (Tagged (PersonId, Person))
+{-@ getPersonDetails :: String -> Handler (TaggedPerson<{\u -> isVerified u}> (PersonId, Person)) @-}
+getPersonDetails :: String -> Handler (TaggedPerson (PersonId, Person))
 getPersonDetails email = do
   maybePersonTagged <- runDB $ selectPerson ([filterPersonEmail EQUAL email] :: [RefinedFilter Person String]) []
   return $ do
@@ -44,17 +48,19 @@ getPersonDetails email = do
                [] -> error "aaaa" -- Can't occur
                (Entity uid person):_ -> (uid, person)
 
-getFriendPrintout :: User -> Tagged (PersonId, Person) -> String
+getFriendPrintout :: User -> TaggedPerson (PersonId, Person) -> String
 getFriendPrintout user taggedPerson =
   if isUserVerified user then
-    let (_, Person _ name street number) = safeUnwrap taggedPerson user in
+    let taggedRow = TaggedPerson.liftM snd taggedPerson in
+    let (_, Person _ name street number) = safeUnwrapPerson taggedRow (return user) taggedPerson in
       name ++ (fromString ": ") ++ (fromString (show number)) ++ (fromString " ") ++ street
   else ""
 
-getRequestPrintout :: User -> Tagged (PersonId, Person) -> (PersonId, String)
+getRequestPrintout :: User -> TaggedPerson (PersonId, Person) -> (PersonId, String)
 getRequestPrintout user taggedPerson =
   let (pid, Person _ name _ _) = if isUserVerified user
-                                 then safeUnwrap taggedPerson user
+                                 then let taggedRow = TaggedPerson.liftM snd taggedPerson
+                                      in safeUnwrapPerson taggedRow (return user) taggedPerson
                                  else error "cannot occur"
   in (pid, name)
 
@@ -65,15 +71,15 @@ getConfirmLinkR link = do
     $(widgetFile "showlink")
 
 
-{-@ unwrapDouble :: User<{\u -> isVerified u}> -> Tagged (Handler (Tagged (Handler a))) -> Handler a @-}
-unwrapDouble :: User -> Tagged (Handler (Tagged (Handler a))) -> Handler a
-unwrapDouble user xTHTH = do
-  xTH <- safeUnwrap xTHTH user
-  x <- safeUnwrap xTH user
+{-@ unwrapDouble :: TaggedPerson Person -> TaggedFriends Friends -> User<{\u -> isVerified u}> -> TaggedPerson (Handler (TaggedFriends (Handler a))) -> Handler a @-}
+unwrapDouble :: TaggedPerson Person -> TaggedFriends Friends -> User -> TaggedFriends (Handler (TaggedPerson (Handler a))) -> Handler a
+unwrapDouble rowP rowF user xTHTH = do
+  xTH <- safeUnwrapPerson rowP (return user) xTHTH
+  x <- safeUnwrapPerson rowF (return user) xTH
   return x
 
 
-getFriends :: (Tagged (Maybe (PersonId, Person))) -> User -> Handler [String]
+getFriends :: (TaggedPerson (Maybe (PersonId, Person))) -> User -> Handler [String]
 getFriends _ _ = undefined
 {- getFriends pidT user = do
   friendEmailListTHT <- return $ fmap (\pidOpt ->
@@ -96,7 +102,7 @@ getFriends _ _ = undefined
   return friendList
 -}
 
-getRequests :: (Tagged (Maybe (PersonId, Person))) -> User -> Handler [(PersonId, String)]
+getRequests :: (TaggedPerson (Maybe (PersonId, Person))) -> User -> Handler [(PersonId, String)]
 getRequests _ _ = undefined
 {- getRequests pidT user = do
   requestEmailListTHT <- return $ fmap (\pidOpt ->
@@ -119,10 +125,10 @@ getRequests _ _ = undefined
   return requestList
 -}
 
-{-@ getLink :: (Tagged<{\u -> isVerified u}> (Maybe (PersonId, Person))) -> Maybe User -> Route App @-}
-getLink :: Tagged (Maybe (PersonId, Person)) -> Maybe User -> Route App
+{-@ getLink :: (TaggedPerson<{\u -> isVerified u}> (Maybe (PersonId, Person))) -> Maybe User -> Route App @-}
+getLink :: TaggedPerson (Maybe (PersonId, Person)) -> Maybe User -> Route App
 getLink maybePersonTagged maybeUser =
-    let linkT = BinahLibrary.liftM (\maybePerson ->
+    let linkT = TaggedPerson.liftM (\maybePerson ->
                          case maybePerson of
                            Nothing -> AuthR LoginR
                            Just (uid, _) -> ProfileR uid)
@@ -149,14 +155,12 @@ getHomeR = do
 
     link <- return $ getLink maybePersonTagged maybeUser
     requestList <- return ([] :: [(PersonId, String)])
-    friendList <- return ([] :: [String])
-    {-
     friendList <- case maybeUser of
                     Just user -> if isUserVerified user
                                  then getFriends maybePersonTagged user
                                  else return []
                     Nothing -> return []
-    requestList <- case maybeUser of
+    {- requestList <- case maybeUser of
                     Just user -> if isUserVerified user
                                  then getRequests maybePersonTagged user
                                  else return []
@@ -168,8 +172,8 @@ getHomeR = do
         $(widgetFile "homepage")
 
 
-{-@ getAuthPerson :: Handler (Tagged<{\u -> isVerified u}> (Maybe (Key Person, Person))) @-}
-getAuthPerson :: Handler (Tagged (Maybe (Key Person, Person)))
+{-@ getAuthPerson :: Handler (TaggedPerson<{\u -> isVerified u}> (Maybe (Key Person, Person))) @-}
+getAuthPerson :: Handler (TaggedPerson (Maybe (Key Person, Person)))
 getAuthPerson = do
   myId <- maybeAuthId
   authPerson <- case myId of
