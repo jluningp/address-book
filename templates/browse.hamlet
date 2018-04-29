@@ -1,6 +1,6 @@
 <h1> Browse People </h1>
                         <table>
-                            $forall (personid, personname, showFriend, showRequest) <- (safeUnwrap peopleDetails user)
+                            $forall (personid, personname, showFriend, showRequest) <- peopleDetails
                                <tr .people>
                                   <td>#{personname}</td>
                                   $if showFriend
