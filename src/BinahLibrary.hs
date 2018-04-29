@@ -553,7 +553,7 @@ getFriendsOutgoingRequests (TaggedFriends x) = TaggedFriends $ friendsOutgoingRe
 -- TODO: move downgrades into the Tagged files!
 
 {-@
-downgradeBool :: forall < p :: User -> User -> Bool
+downgradeBoolUser :: forall < p :: User -> User -> Bool
                 , q :: User -> User -> Bool
                 , r :: Bool -> Bool
                 >.
@@ -561,8 +561,8 @@ downgradeBool :: forall < p :: User -> User -> Bool
       x: TaggedUser <q> (Bool<r>)
     -> TaggedUser <p> (Bool<r>)
 @-}
-downgradeBool :: TaggedUser Bool -> TaggedUser Bool
-downgradeBool (TaggedUser x) = TaggedUser x
+downgradeBoolUser :: TaggedUser Bool -> TaggedUser Bool
+downgradeBoolUser (TaggedUser x) = TaggedUser x
 
 {-@
 downgradeBoolPerson :: forall < p :: Person -> User -> Bool
@@ -576,6 +576,30 @@ downgradeBoolPerson :: forall < p :: Person -> User -> Bool
 downgradeBoolPerson :: TaggedPerson Bool -> TaggedPerson Bool
 downgradeBoolPerson (TaggedPerson x) = TaggedPerson x
 
+{-@
+downgradeBoolEmail :: forall < p :: Email -> User -> Bool
+                , q :: Email -> User -> Bool
+                , r :: Bool -> Bool
+                >.
+       {w:: Email, x:: {v:Bool<r> | v <=> true} |- User<p w> <: User<q w>}
+      x: TaggedEmail <q> (Bool<r>)
+    -> TaggedEmail <p> (Bool<r>)
+@-}
+downgradeBoolEmail :: TaggedEmail Bool -> TaggedEmail Bool
+downgradeBoolEmail (TaggedEmail x) = TaggedEmail x
+
+{-@
+downgradeBoolFriends :: forall < p :: Friends -> User -> Bool
+                , q :: Friends -> User -> Bool
+                , r :: Bool -> Bool
+                >.
+       {w:: Friends, x:: {v:Bool<r> | v <=> true} |- User<p w> <: User<q w>}
+      x: TaggedFriends<q> (Bool<r>)
+    -> TaggedFriends<p> (Bool<r>)
+@-}
+downgradeBoolFriends :: TaggedFriends Bool -> TaggedFriends Bool
+downgradeBoolFriends (TaggedFriends x) = TaggedFriends x
+
 {-@ defaultFriends :: TaggedUser <{\u v -> true}> [User] @-}
 defaultFriends :: TaggedUser [User]
 defaultFriends = return []
@@ -587,7 +611,7 @@ message :: TaggedUser User -> TaggedUser User -> TaggedUser [User]
 message viewer user =
   let verified = do v <- viewer
                     return $ isUserVerified v in
-  let b = downgradeBool verified in
+  let b = downgradeBoolUser verified in
   do
     c <- b
     if c 
