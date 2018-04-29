@@ -673,3 +673,36 @@ sinkPersonStreet viewer viewer2 =
   let user = selectTaggedDataPersonStreet () in
   let out = messagePersonStreet viewer user in
   safeUnwrapPerson user viewer out
+
+-- Collapse functions
+{-@ assume collapseTaggedUser :: forall a m <p :: User -> User -> Bool, q :: User -> User -> Bool, r :: User -> User -> Bool>.
+    {w :: User |- User<r w> <: User<p w>}
+    {w :: User |- User<r w> <: User<q w>}
+    TaggedUser<p> (m (TaggedUser<q> a)) -> m (TaggedUser<r> a)
+@-}
+collapseTaggedUser :: Monad m => TaggedUser (m (TaggedUser a)) -> m (TaggedUser a)
+collapseTaggedUser (TaggedUser x) = x
+
+{-@ assume collapseTaggedEmail :: forall a m <p :: Email -> User -> Bool, q :: Email -> User -> Bool, r :: Email -> User -> Bool>.
+    {w :: Email |- User<r w> <: User<p w>}
+    {w :: Email |- User<r w> <: User<q w>}
+    TaggedEmail<p> (m (TaggedEmail<q> a)) -> m (TaggedEmail <r> a)
+@-}
+collapseTaggedEmail :: Monad m => TaggedEmail (m (TaggedEmail a)) -> m (TaggedEmail a)
+collapseTaggedEmail (TaggedEmail x) = x
+
+{-@ assume collapseTaggedPerson :: forall a m <p :: Person -> User -> Bool, q :: Person -> User -> Bool, r :: Person -> User -> Bool>.
+    {w :: Person |- User<r w> <: User<p w>}
+    {w :: Person |- User<r w> <: User<q w>}
+    TaggedPerson <p> (m (TaggedPerson <q> a)) -> m (TaggedPerson <r> a)
+@-}
+collapseTaggedPerson :: Monad m => TaggedPerson (m (TaggedPerson a)) -> m (TaggedPerson a)
+collapseTaggedPerson (TaggedPerson x) = x
+
+{-@ assume collapseTaggedFriends :: forall a m <p :: Friends -> User -> Bool, q :: Friends -> User -> Bool, r :: Friends -> User -> Bool>.
+    {w :: Friends |- User<r w> <: User<p w>}
+    {w :: Friends |- User<r w> <: User<q w>}
+    TaggedFriends <p> (m (TaggedFriends <q> a)) -> m (TaggedFriends <r> a)
+@-}
+collapseTaggedFriends :: Monad m => TaggedFriends (m (TaggedFriends a)) -> m (TaggedFriends a)
+collapseTaggedFriends (TaggedFriends x) = x
