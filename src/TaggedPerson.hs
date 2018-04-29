@@ -50,3 +50,11 @@ instance Monad TaggedPerson where
          -> TaggedPerson b;
      return :: forall <p :: Person -> User -> Bool>. a -> TaggedPerson <p> a
 @-}
+
+{-@ liftM :: forall a b <p :: User -> Bool, f:: a -> b -> Bool>.
+                   (u:a -> b<f u>)
+                -> x: TaggedPerson <p> a
+                -> TaggedPerson <p> (b<f (content x)>)
+@-}
+liftM :: (a -> b) -> TaggedPerson a -> TaggedPerson b
+liftM f x =  x >>= \x' -> return (f x')

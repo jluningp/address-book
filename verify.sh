@@ -9,4 +9,4 @@ if [[ $# -eq 0 ]] ; then
     exit 0
 fi
 echo "Verifying $1..."
-stack exec -- liquid -i src --no-pattern-inline --prune-unsorted $1
+stack exec -- liquid -i src --no-pattern-inline --prune-unsorted  --elimBound=4 --scrape-imports $1

@@ -4,9 +4,9 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies #-}
 
---{-@ LIQUID "--no-adt" 	                           @-}
+{-@ LIQUID "--no-adt" 	                           @-}
 {-@ LIQUID "--exact-data-con"                      @-}
---{-@ LIQUID "--higherorder"                         @-}
+{-@ LIQUID "--higherorder"                         @-}
 {-@ LIQUID "--no-termination"                      @-}
 
 module Handler.Browse where
@@ -17,7 +17,7 @@ import BinahLibrary hiding (filter)
 import Data.Traversable
 import qualified Data.Maybe as Maybe
 
-processPeople :: Tagged [(PersonId, Person)] -> Handler (Tagged (Handler (Tagged [(Entity Person, Bool, Bool)])))
+processPeople :: TaggedPerson [(PersonId, Person)] -> Handler (TaggedPerson [(Entity Person, Bool, Bool)])
 processPeople peopleList = do
   authPersonTagged <- Queries.getAuthPerson
   friends <- return $ do --Tagged Handler (Maybe Tagged)
@@ -45,7 +45,7 @@ processPeople peopleList = do
                              (Entity id (Person email name street number),
                                any (\y -> y == e) friendList,
                                any (\y -> y == e) requestList)) pList
-  return $ people
+  return $ collapseTaggedPerson people
 
 getBrowseR :: Handler Html
 getBrowseR = do

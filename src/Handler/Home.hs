@@ -4,7 +4,10 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies #-}
 
+{-@ LIQUID "--no-adt" 	                           @-}
 {-@ LIQUID "--exact-data-con"                      @-}
+{-@ LIQUID "--higherorder"                         @-}
+{-@ LIQUID "--no-termination"                      @-}
 
 module Handler.Home where
 
@@ -14,6 +17,10 @@ import Queries
 import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3)
 import Text.Julius (RawJS (..))
 import qualified Data.Maybe as Maybe
+import           TaggedUser
+import           TaggedEmail
+import           TaggedPerson
+import           TaggedFriends
 
 -- Define our data that will be used for creating the form.
 data FileForm = FileForm
@@ -29,32 +36,31 @@ data FileForm = FileForm
 -- functions. You can spread them across multiple files if you are so
 -- inclined, or create a single monolithic file.
 
---{-@ assume Prelude.error :: String -> a @-}
+{-@ assume Prelude.error :: String -> a @-}
 
-{-@ getPersonDetails :: String -> Handler (Tagged<{\u -> isVerified u}> (PersonId, Person)) @-}
-getPersonDetails :: String -> Handler (Tagged (PersonId, Person))
+{-@ getPersonDetails :: String -> Handler (TaggedPerson<{\u -> isVerified u}> (PersonId, Person)) @-}
+getPersonDetails :: String -> Handler (TaggedPerson (PersonId, Person))
 getPersonDetails email = do
-  maybePersonTagged <- runDB $ selectPerson ([{-filterPersonEmail EQUAL "foo"-}] :: [RefinedFilter Person String]) []
+  maybePersonTagged <- runDB $ selectPerson ([filterPersonEmail EQUAL email] :: [RefinedFilter Person String]) []
   return $ do
     maybePerson <- maybePersonTagged
     return $ case maybePerson of
                [] -> error "aaaa" -- Can't occur
                (Entity uid person):_ -> (uid, person)
 
-getFriendPrintout :: Maybe User -> Tagged (PersonId, Person) -> String
-getFriendPrintout maybeUser taggedPerson =
-  case maybeUser of
-    Nothing -> ""
-    Just user ->
-      if isUserVerified user then
-        let (_, Person _ name street number) = safeUnwrap taggedPerson user in
-          name ++ (fromString ": ") ++ (fromString (show number)) ++ (fromString " ") ++ street
-      else ""
+getFriendPrintout :: User -> TaggedPerson (PersonId, Person) -> String
+getFriendPrintout user taggedPerson =
+  if isUserVerified user then
+    let taggedRow = TaggedPerson.liftM snd taggedPerson in
+    let (_, Person _ name street number) = safeUnwrapPerson taggedRow (return user) taggedPerson in
+      name ++ (fromString ": ") ++ (fromString (show number)) ++ (fromString " ") ++ street
+  else ""
 
-getRequestPrintout :: User -> Tagged (PersonId, Person) -> (PersonId, String)
+getRequestPrintout :: User -> TaggedPerson (PersonId, Person) -> (PersonId, String)
 getRequestPrintout user taggedPerson =
   let (pid, Person _ name _ _) = if isUserVerified user
-                                 then safeUnwrap taggedPerson user
+                                 then let taggedRow = TaggedPerson.liftM snd taggedPerson
+                                      in safeUnwrapPerson taggedRow (return user) taggedPerson
                                  else error "cannot occur"
   in (pid, name)
 
@@ -65,10 +71,79 @@ getConfirmLinkR link = do
     $(widgetFile "showlink")
 
 
+{-@ unwrapDouble :: TaggedPerson Person -> TaggedFriends Friends -> User<{\u -> isVerified u}> -> TaggedPerson (Handler (TaggedFriends (Handler a))) -> Handler a @-}
+unwrapDouble :: TaggedPerson Person -> TaggedFriends Friends -> User -> TaggedFriends (Handler (TaggedPerson (Handler a))) -> Handler a
+unwrapDouble rowP rowF user xTHTH = do
+  xTH <- safeUnwrapPerson rowP (return user) xTHTH
+  x <- safeUnwrapPerson rowF (return user) xTH
+  return x
+
+
+getFriends :: (TaggedPerson (Maybe (PersonId, Person))) -> User -> Handler [String]
+getFriends _ _ = undefined
+{- getFriends pidT user = do
+  friendEmailListTHT <- return $ fmap (\pidOpt ->
+                         case pidOpt of
+                           Just (pid, _) -> Queries.getFriendList pid
+                           Nothing -> return $ return [])
+                         pidT
+
+  friendPersonListTHTHL <- return $ fmap (fmap (fmap (\friendEmailList ->
+                            mapM getPersonDetails $ map unpack friendEmailList)))
+                            friendEmailListTHT
+
+  friendListTHTHL <- return $ fmap (fmap (fmap (fmap (
+                      map (getFriendPrintout user)))))
+                      friendPersonListTHTHL
+
+  friendList <- if isUserVerified user
+                 then unwrapDouble user friendListTHTHL
+                 else return []
+  return friendList
+-}
+
+getRequests :: (TaggedPerson (Maybe (PersonId, Person))) -> User -> Handler [(PersonId, String)]
+getRequests _ _ = undefined
+{- getRequests pidT user = do
+  requestEmailListTHT <- return $ fmap (\pidOpt ->
+                         case pidOpt of
+                           Just (pid, _) -> Queries.getRequestList pid
+                           Nothing -> return $ return [])
+                         pidT
+
+  requestPersonListTHTHL <- return $ fmap (fmap (fmap (\requestEmailList ->
+                            mapM getPersonDetails $ map unpack requestEmailList)))
+                            requestEmailListTHT
+
+  requestListTHTHL <- return $ fmap (fmap (fmap (fmap (
+                      map (getRequestPrintout user)))))
+                      requestPersonListTHTHL
+
+  requestList <- if isUserVerified user
+                 then unwrapDouble user requestListTHTHL
+                 else return []
+  return requestList
+-}
+
+{-@ getLink :: (TaggedPerson<{\u -> isVerified u}> (Maybe (PersonId, Person))) -> Maybe User -> Route App @-}
+getLink :: TaggedPerson (Maybe (PersonId, Person)) -> Maybe User -> Route App
+getLink maybePersonTagged maybeUser =
+    let linkT = TaggedPerson.liftM (\maybePerson ->
+                         case maybePerson of
+                           Nothing -> AuthR LoginR
+                           Just (uid, _) -> ProfileR uid)
+                maybePersonTagged
+    in case maybeUser of
+         Just user -> if isUserVerified user
+                      then safeUnwrap linkT user
+                      else AuthR LoginR
+         Nothing -> AuthR LoginR
+
+
 getHomeR :: Handler Html
 getHomeR = do
     myId <- maybeAuthId
-    maybePersonTagged <- Handler.Home.getAuthPerson
+    maybePersonTagged <- Queries.getAuthPerson
     maybeUser <- Queries.getAuthUser
     loggedIn <- return $ case maybeUser of
                            Nothing -> False
@@ -77,79 +152,28 @@ getHomeR = do
                                             Nothing -> False
                                             Just _ -> True
                                         else False
-    link <- case myId of
-              Nothing -> return $ AuthR LoginR
-              Just id -> runDB $ do
-                user <- get id
-                route <-
-                  case user of
-                           Nothing -> return $ AuthR LoginR
-                           Just u -> do
-                             x  <- getBy $ UniquePerson (userEmail u)
-                             route <- case x of
-                                        Nothing -> return $ AuthR LoginR
-                                        Just (Entity uid _) -> return $ ProfileR uid
-                             return route
-                return route
-    friendEmailListTaggedHandlerTagged <- return $ do
-      maybePerson <- maybePersonTagged
-      return $ case maybePerson of
-                 Just (pid, _) -> Handler.Home.getFriendList pid
-                 Nothing -> return $ return []
-    requestEmailListTaggedHandlerTagged <- return $ do
-      maybePerson <- maybePersonTagged
-      return $ case maybePerson of
-                 Just (pid, _) -> Handler.Home.getRequestList pid
-                 Nothing -> return $ return []
-    friendPersonList <- return $ do --handler   :: Tagged (Handler (Tagged (Handler [Tagged])))
-      friendEmailListHandlerTagged <- friendEmailListTaggedHandlerTagged
-      return $ do --tagged
-        friendEmailListTagged <- friendEmailListHandlerTagged
-        return $ do --handler
-          friendEmailList <- friendEmailListTagged
-          return {-tagged-} $ mapM getPersonDetails $ map unpack friendEmailList --[handler tagged]
-    requestPersonList <- return $ do --handler   :: Tagged (Handler (Tagged (Handler [Tagged])))
-      requestEmailListHandlerTagged <- requestEmailListTaggedHandlerTagged
-      return $ do --tagged
-        requestEmailListTagged <- requestEmailListHandlerTagged
-        return $ do --handler
-          requestEmailList <- requestEmailListTagged
-          return {-tagged-} $ mapM getPersonDetails $ map unpack requestEmailList
-    friendListTHTHL <- return $ fmap (\hthl -> fmap (\thl -> fmap (\hl -> fmap (\l ->
-                           map (getFriendPrintout maybeUser) l) hl) thl) hthl) friendPersonList
-    requestListTHTHL <- return $ fmap (\hthl -> fmap (\thl -> fmap (\hl -> fmap (\l ->
-                            case maybeUser of
-                              Nothing -> []
-                              Just user -> if isUserVerified user
-                                           then map (getRequestPrintout user) l
-                                           else []) hl) thl) hthl) requestPersonList
-    friendListH <- case maybeUser of
-                       Nothing -> return $ return []
-                       Just user -> if isUserVerified user
-                                    then return $ do
-                         friendListTHL <- safeUnwrap friendListTHTHL user
-                         friendList <- safeUnwrap friendListTHL user
-                         return friendList
-                                    else return $ return []
-    friendList <- friendListH
 
-    requestListH <- case maybeUser of
-                       Nothing -> return $ return []
-                       Just user -> if isUserVerified user
-                                    then return $ do
-                         requestListTHL <- safeUnwrap requestListTHTHL user
-                         requestList <- safeUnwrap requestListTHL user
-                         return requestList
-                                    else return $ return []
-    requestList <- requestListH
-
+    link <- return $ getLink maybePersonTagged maybeUser
+    requestList <- return ([] :: [(PersonId, String)])
+    friendList <- case maybeUser of
+                    Just user -> if isUserVerified user
+                                 then getFriends maybePersonTagged user
+                                 else return []
+                    Nothing -> return []
+    {- requestList <- case maybeUser of
+                    Just user -> if isUserVerified user
+                                 then getRequests maybePersonTagged user
+                                 else return []
+                    Nothing -> return []
+    -}
     defaultLayout $ do
         aDomId <- newIdent
         setTitle "Welcome To Yesod!"
         $(widgetFile "homepage")
 
-{-@ getAuthPerson :: Handler (Tagged<{\u -> isVerified u}> (Maybe (Key Person, Person))) @-}
-getAuthPerson :: Handler (Tagged (Maybe (Key Person, Person)))
+
+{-@ getAuthPerson :: Handler (TaggedPerson<{\u -> isVerified u}> (Maybe (Key Person, Person))) @-}
+getAuthPerson :: Handler (TaggedPerson (Maybe (Key Person, Person)))
 getAuthPerson = do
   myId <- maybeAuthId
   authPerson <- case myId of
@@ -157,33 +181,10 @@ getAuthPerson = do
                   Just id -> runDB $ do
                     userOpt <- get id
                     user <- return $ Maybe.fromJust userOpt
-                    entityPersonTagged <- selectPerson ([{-filterPersonEmail EQUAL (userEmail user)-}] :: [RefinedFilter Person String]) []
+                    entityPersonTagged <- selectPerson ([filterPersonEmail EQUAL (userEmail user)] :: [RefinedFilter Person String]) []
                     return $ do
                       entityPerson <- entityPersonTagged
                       return $ case entityPerson of
                                  [] -> Nothing
                                  (Entity uid person):_ -> Just (uid, person)
   return authPerson
-
-{-@ getList :: (Friends -> [String]) -> PersonId -> Handler (Tagged<{\u -> isVerified u}> [Text]) @-}
-getList :: (Friends -> [String]) -> PersonId -> Handler (Tagged [Text])
-getList getter personId = do
-  personOpt <- runDB $ get personId
-  list <- case personOpt of
-            Nothing -> return $ return []
-            Just (Person email _ _ _) ->
-              runDB $ do
-              friendsOpt <- selectFriends [filterFriendsEmail EQUAL email] []
-              return $ fmap (\friends -> case friends of
-                                           [] -> []
-                                           (Entity uid friend):_ ->
-                                             map pack (getter friend)) friendsOpt
-  return list
-
-
-{-@ getFriendList :: PersonId -> Handler (Tagged<{\u -> isVerified u}> [Text]) @-}
-getFriendList = Handler.Home.getList friendsFriends
-{-@ getRequestList :: PersonId -> Handler (Tagged<{\u -> isVerified u}> [Text]) @-}
-getRequestList = Handler.Home.getList friendsRequests
-{-@ getOutgoingRequestList :: PersonId -> Handler (Tagged<{\u -> isVerified u}> [Text]) @-}
-getOutgoingRequestList = Handler.Home.getList friendsOutgoingRequests

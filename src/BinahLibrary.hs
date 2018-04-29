@@ -28,6 +28,59 @@ import           TaggedEmail
 import           TaggedPerson
 import           TaggedFriends
 
+(=#) :: EntityField v typ -> typ -> RefinedUpdate v typ
+x =# y = RefinedUpdate x y
+
+{-@ reflect ==# @-}
+(==#) :: (PersistEntity record, Eq typ) =>
+                 EntityField record typ -> typ -> RefinedFilter record typ
+field ==# value = RefinedFilter field value EQUAL
+
+{-@ reflect /=# @-}
+(/=#) :: (PersistEntity record, Eq typ) =>
+                 EntityField record typ -> typ -> RefinedFilter record typ
+field /=# value = RefinedFilter field value NE
+
+{-@ reflect <=# @-}
+(<=#) :: (PersistEntity record, Eq typ) =>
+                 EntityField record typ -> typ -> RefinedFilter record typ
+field <=# value =
+  RefinedFilter {
+    refinedFilterField = field
+  , refinedFilterValue = value
+  , refinedFilterFilter = LE
+  }
+
+{-@ reflect <# @-}
+(<#) :: (PersistEntity record, Eq typ) =>
+                 EntityField record typ -> typ -> RefinedFilter record typ
+field <# value =
+  RefinedFilter {
+    refinedFilterField = field
+  , refinedFilterValue = value
+  , refinedFilterFilter = LTP
+  }
+
+{-@ reflect >=# @-}
+(>=#) :: (PersistEntity record, Eq typ) =>
+                 EntityField record typ -> typ -> RefinedFilter record typ
+field >=# value =
+  RefinedFilter {
+    refinedFilterField = field
+  , refinedFilterValue = value
+  , refinedFilterFilter = GE
+  }
+
+{-@ reflect ># @-}
+(>#) :: (PersistEntity record, Eq typ) =>
+                 EntityField record typ -> typ -> RefinedFilter record typ
+field ># value =
+  RefinedFilter {
+    refinedFilterField = field
+  , refinedFilterValue = value
+  , refinedFilterFilter = GE
+  }
+
 data RefinedPersistFilter = EQUAL | NE | LE | LTP | GE | GTP
 
 {-@ data RefinedFilter record typ <p :: record -> User -> Bool> = RefinedFilter
@@ -604,7 +657,7 @@ downgradeBoolFriends (TaggedFriends x) = TaggedFriends x
 defaultFriends :: TaggedUser [User]
 defaultFriends = return []
 
-{-@ message :: viewer:TaggedUser <{\u v -> true}> User -> 
+{-@ message :: viewer:TaggedUser <{\u v -> true}> User ->
                user:TaggedUser <{\u v -> isVerified v}> User ->
                TaggedUser <{\u v -> v == userContent viewer && u == userContent user}> [User] @-}
 message :: TaggedUser User -> TaggedUser User -> TaggedUser [User]
@@ -614,7 +667,7 @@ message viewer user =
   let b = downgradeBoolUser verified in
   do
     c <- b
-    if c 
+    if c
       then (return [])
       else defaultFriends
 
@@ -628,38 +681,38 @@ sink viewer viewer2 =
   let out = message viewer user in
   safeUnwrapUser user viewer out
 
-{-@ messagePersonEmail :: viewer:TaggedPerson <{\u v -> true}> User -> 
+{-@ messagePersonEmail :: viewer:TaggedPerson <{\u v -> true}> User ->
                person:TaggedPerson <{\u v -> personEmail u == (userEmail v)}> Person ->
                TaggedPerson<{\u v -> v == personContent viewer && u == personContent person}> String @-}
-messagePersonEmail :: TaggedPerson User -> TaggedPerson Person -> TaggedPerson String 
+messagePersonEmail :: TaggedPerson User -> TaggedPerson Person -> TaggedPerson String
 messagePersonEmail viewer person =
   let emailsEqual = isPersonSameUser person viewer in
   let b = downgradeBoolPerson emailsEqual in
   do
     c <- b
-    if c 
+    if c
       then (person >>= (return . personEmail))
       else return ""
 
-{-@ messagePersonStreet :: viewer:TaggedPerson <{\u v -> true}> User -> 
+{-@ messagePersonStreet :: viewer:TaggedPerson <{\u v -> true}> User ->
                person:TaggedPerson <{\u v -> personFriendsWithUser u v}> Person ->
                TaggedPerson<{\u v -> v == personContent viewer && u == personContent person}> String @-}
-messagePersonStreet :: TaggedPerson User -> TaggedPerson Person -> TaggedPerson String 
+messagePersonStreet :: TaggedPerson User -> TaggedPerson Person -> TaggedPerson String
 messagePersonStreet viewer person =
   let friends = isPersonFriendsWithUser person viewer in
   let b = downgradeBoolPerson friends in
   do
     c <- b
-    if c 
+    if c
       then (person >>= (return . personStreet))
       else return ""
 
 {-@ selectTaggedDataPerson :: () -> TaggedPerson <{\u v -> personEmail u == (userEmail v)}> Person @-}
-selectTaggedDataPerson :: () -> TaggedPerson Person 
+selectTaggedDataPerson :: () -> TaggedPerson Person
 selectTaggedDataPerson () = undefined
 
 {-@ selectTaggedDataPersonStreet :: () -> TaggedPerson <{\u v -> personFriendsWithUser u v}> Person @-}
-selectTaggedDataPersonStreet :: () -> TaggedPerson Person 
+selectTaggedDataPersonStreet :: () -> TaggedPerson Person
 selectTaggedDataPersonStreet () = undefined
 
 sinkPersonEmail :: TaggedPerson User -> TaggedPerson User -> String
