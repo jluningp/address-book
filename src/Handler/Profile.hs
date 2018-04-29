@@ -8,6 +8,7 @@
 {-@ LIQUID "--exact-data-con"                      @-}
 {-@ LIQUID "--higherorder"                         @-}
 {-@ LIQUID "--no-termination"                      @-}
+{-@ LIQUID "--ple" @-}
 
 module Handler.Profile where
 
@@ -16,10 +17,6 @@ import Import
 import Queries
 import BinahLibrary hiding (filter)
 import qualified Data.Maybe as Maybe
-import           TaggedUser
-import           TaggedEmail
-import           TaggedPerson
-import           TaggedFriends
 
 data PersonDetails = PersonDetails Text Text Int
 
@@ -46,9 +43,8 @@ getProfileR personId = do
   Person email name street number <- runDB $ get404 personId --safeUnwrap taggedPerson user
   (widget, enctype) <- generateFormPost $ personForm (Person email name street number)
   canEditTagged <- Queries.isMe personId
-  taggedPerson <- return $ TaggedPerson.liftM (Maybe.fromJust . snd) canEditTagged
   canEdit <- return $ if isUserVerified user
-                      then fst (safeUnwrapPerson taggedPerson (return user) canEditTagged)
+                      then safeUnwrap canEditTagged user
                       else False
   defaultLayout $ do
     $(widgetFile "profile")
