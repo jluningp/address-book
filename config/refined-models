@@ -11,17 +11,15 @@ Email
    verkey String Maybe
    UniqueEmail email
 Person
-   email String {\u => email u == personEmail}
+   email String {\viewer person -> userEmail viewer == personEmail person}
    UniquePerson email
-   name {n : String | len n > 0} {\u => isVerified u}
-   street {n : String | len n > 0} {\u => inFriendsList u personEmail}
-   number {v:Int | v > 0} {\u => inFriendsList u personEmail}
+   name {n : String | len n > 0} {\viewer person -> isVerified viewer}
+   street {n : String | len n > 0} {\viewer person -> personFriendsWithUser person viewer}
+   number {v:Int | v > 0} {\viewer person -> personFriendsWithUser person viewer}
    deriving Show
 Friends
-   email String
+   email String {\viewer friend -> userEmail viewer == friendsEmail friend}
    UniqueFriend email
-   requests [String]
-   friends [String] {\u => inFriendsList u friendsEmail}
-   outgoingRequests [String] {Should be able to see that
-                              you're in the outgoing requests,
-			      but not any of the other ones}
+   requests [String] {\viewer friend -> userEmail viewer == friendsEmail friend}
+   friends [String] {\viewer friend -> friendFriendsWithUser friend viewer}
+   outgoingRequests [String] {\viewer friend -> userEmail viewer == friendsEmail friend}
